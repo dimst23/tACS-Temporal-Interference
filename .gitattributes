@@ -1,13 +1,10 @@
 #common settings that generally should always be used with your language specific settings
-
 # Auto detect text files and perform LF normalization
 # http://davidlaing.com/2012/09/19/customise-your-gitattributes-to-become-a-git-ninja/
 * text=auto
-
 #
 # The above will handle all files NOT found below
 #
-
 # Documents
 *.doc	 diff=astextplain
 *.DOC	 diff=astextplain
@@ -27,7 +24,6 @@
 *.tab text
 *.tsv text
 *.sql text
-
 # Graphics
 *.png binary
 *.jpg binary
@@ -44,20 +40,17 @@
 # Basic .gitattributes for a MATLAB repo.
 # This template includes Simulink and MuPAD extensions, in addition
 # to the MATLAB extensions.
-
 # Source files
 # ============
 *.m             text
 *.mu            text
-
 # Caution: *.m also matches Mathematica packages.
-
 # Binary files
 # ============
 *.p             binary
 *.mex*          binary
 *.fig           binary
-*.mat           binary
+*.mat filter=lfs diff=lfs merge=lfs -text
 *.mdl           binary
 *.slx           binary
 *.mdlp          binary
@@ -68,7 +61,6 @@
 *.mlpkginstall  binary
 *.mn            binary
 # Basic .gitattributes for a python repo.
-
 # Source files
 # ============
 *.pxd		text
@@ -76,7 +68,6 @@
 *.py3 		text
 *.pyw 		text
 *.pyx  		text
-
 # Binary files
 # ============
 *.db		binary
@@ -85,7 +76,6 @@
 *.pyc 		binary
 *.pyd		binary
 *.pyo 		binary
-
 # Note: .db, .p, and .pkl files are associated
 # with the python modules ``pickle``, ``dbm.*``,
 # ``shelve``, ``marshal``, ``anydbm``, & ``bsddb``
@@ -99,13 +89,11 @@
 #
 # Note that binary is a macro for -text -diff.
 ######################################################################
-
 ## AUTO-DETECT
 ##   Handle line endings automatically for files detected as
 ##   text and leave all files detected as binary untouched.
 ##   This will handle all files NOT defined below.
 * text=auto
-
 ## SOURCE CODE
 *.bat      text eol=crlf
 *.coffee   text
@@ -135,11 +123,9 @@
 *.tsx      text
 *.xml      text
 *.xhtml    text
-
 ## DOCKER
 *.dockerignore    text
 Dockerfile    text
-
 ## DOCUMENTATION
 *.markdown   text
 *.md         text
@@ -164,7 +150,6 @@ NEWS         text
 readme       text
 *README*     text
 TODO         text
-
 ## TEMPLATES
 *.dot        text
 *.ejs        text
@@ -180,7 +165,6 @@ TODO         text
 *.tmpl       text
 *.tpl        text
 *.twig       text
-
 ## LINTERS
 .csslintrc    text
 .eslintrc     text
@@ -189,7 +173,6 @@ TODO         text
 .jshintrc     text
 .jshintignore text
 .stylelintrc  text
-
 ## CONFIGS
 *.bowerrc      text
 *.cnf          text
@@ -206,11 +189,9 @@ TODO         text
 browserslist   text
 Makefile       text
 makefile       text
-
 ## HEROKU
 Procfile    text
 .slugignore text
-
 ## GRAPHICS
 *.ai   binary
 *.bmp  binary
@@ -233,7 +214,6 @@ Procfile    text
 *.tiff binary
 *.wbmp binary
 *.webp binary
-
 ## AUDIO
 *.kar  binary
 *.m4a  binary
@@ -242,7 +222,6 @@ Procfile    text
 *.mp3  binary
 *.ogg  binary
 *.ra   binary
-
 ## VIDEO
 *.3gpp binary
 *.3gp  binary
@@ -261,7 +240,6 @@ Procfile    text
 *.swc  binary
 *.swf  binary
 *.webm binary
-
 ## ARCHIVES
 *.7z  binary
 *.gz  binary
@@ -269,17 +247,14 @@ Procfile    text
 *.rar binary
 *.tar binary
 *.zip binary
-
 ## FONTS
 *.ttf   binary
 *.eot   binary
 *.otf   binary
 *.woff  binary
 *.woff2 binary
-
 ## EXECUTABLES
 *.exe binary
 *.pyc binary
-
 ## Sim4Life
-*.smash binary
+*.smash filter=lfs diff=lfs merge=lfs -text
