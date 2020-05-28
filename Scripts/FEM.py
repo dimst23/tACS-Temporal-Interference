@@ -1,32 +1,16 @@
 import pymesh
 import numpy as np
 
-def domain_extract(mesh, boundary_1, boundary_2, closest_faces=None):
-	"""[summary]
-
-	Arguments:
-	  mesh {[Pymesh.Mesh.Mesh]} -- [description]
-	  boundary_1 {[Pymesh.Mesh.Mesh]} -- [description]
-	  boundary_2 {[Pymesh.Mesh.Mesh]} -- [description]
-
-	Keyword Arguments:
-	  closest_faces {[type]} -- [description] (default: {None})
-
-	Returns:
-	  [type] -- [description]
-	"""
-	if closest_faces is None:
-		closest_faces = pymesh.signed_distance_to_mesh(mesh, mesh.vertices)[1]
+def domain_extract(mesh, boundary, direction='out'):
+	distances = pymesh.signed_distance_to_mesh(boundary, mesh.vertices)
 	
-	#s_1 = boundary_1.get_attribute("ori_elem_index")
-	#s_2 = boundary_2.get_attribute("ori_elem_index")
-	#s_t = np.unique(np.hstack((s_1, s_2))).astype(np.int32)
-	
-	#selected_faces = np.intersect1d(closest_faces, s_t) # Find common indices
-	
-	#vert_id = np.isin(closest_faces, selected_faces)
-	#vert_id = np.where(vert_id == True)[0]
-	vert_id = np.where(closest_faces[0] > 0)[0]
+	if direction == 'out':
+		vert_id = np.where(distances[0] >= 0)[0]
+	elif direction == 'in':
+		vert_id = np.where(distances[0] < 0)[0]
+	else:
+		print("Wrong '%s' direction entered".direction)
+		return -1
 	
 	vox_id = np.isin(mesh.voxels, vert_id)
 	vox_id = np.where(vox_id == True)[0]
