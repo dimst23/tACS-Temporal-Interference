@@ -5,19 +5,90 @@ def domain_extract(mesh, boundary, direction='out'):
 	distances = pymesh.signed_distance_to_mesh(boundary, mesh.vertices)
 	
 	if direction == 'out':
-		vert_id = np.where(distances[0] >= 0)[0]
+		vert_id_roi = np.where(distances[0] > 0)[0]
+		vert_id_rest = np.where(distances[0] < 0)[0]
 	elif direction == 'in':
-		vert_id = np.where(distances[0] < 0)[0]
+		vert_id_roi = np.where(distances[0] < 0)[0]
+		vert_id_rest = np.where(distances[0] >= 0)[0]
 	else:
 		print("Wrong '%s' direction entered".direction)
 		return -1
 	
-	vox_id = np.isin(mesh.voxels, vert_id)
-	vox_id = np.where(vox_id == True)[0]
-	vox_id = np.unique(vox_id)
+	vox_id_roi = np.isin(mesh.voxels, vert_id_roi)
+	vox_id_roi = np.where(vox_id_roi == True)[0]
+	vox_id_roi = np.unique(vox_id_roi)
 	
-	return pymesh.submesh(mesh, vox_id, 0)
+	vox_id_rest = np.isin(mesh.voxels, vert_id_rest)
+	vox_id_rest = np.where(vox_id_rest == True)[0]
+	vox_id_rest = np.unique(vox_id_rest)
+	
+	return [pymesh.submesh(mesh, vox_id_roi, 0), pymesh.submesh(mesh, vox_id_rest, 0)]
 
+domains = []
+model = model_tet
+
+for i in range(1, len(sep) - 1):
+	dm = domain_extract(model, sep[i], direction='out')
+	domains.append(dm[0])
+	model = dm[1]
+
+# Skin
+dm = domain_extract(model_tet, sep[1], direction='out')
+skin_domain = dm[0]
+
+# Skull
+dm = domain_extract(dm[1], sep[2], direction='out')
+skull_domain  = dm[0]
+
+# CSF
+temp = pymesh.merge_meshes((sep[3], sep[4])) # Merge Grey Matter and Cerebellum
+dm = domain_extract(dm[1], temp, direction='out')
+csf_domain  = dm[0]
+
+# Grey Matter
+#dm = domain_extract(dm[1], sep[5], direction='out')
+dm_2 = domain_extract(model_tet, sep[3], direction='in')
+#temp = pymesh.merge_meshes((sep[5], sep[6])) # Merge White Matter and Ventricles
+dm_2 = domain_extract(dm_2[0], sep[5], direction='out')
+greymatter_domain = dm_2[0]
+
+# White Matter
+#tms = pymesh.form_mesh(dm_2[0].vertices, dm_2[0].faces)
+#tms = pymesh.form_mesh(greymatter_domain.vertices, greymatter_domain.faces)
+#dm_2 = domain_extract(model_tet, tms, direction='in')
+#temp = pymesh.merge_meshes((sep[5], sep[6])) # Merge White Matter and Ventricles
+dm_2 = domain_extract(dm_2[1], sep[6], direction='out')
+white_matter_domain = dm_2[0]
+
+# Cerebellum
+cerebellum_domain = domain_extract(model_tet, sep[4], direction='in')[0]
+
+# Ventricles
+ventricles_domain = domain_extract(model_tet, sep[6], direction='in')[0]
+
+pymesh.save_mesh('skin_domain.msh', skin_domain)
+pymesh.save_mesh('skull_domain.msh', skull_domain)
+pymesh.save_mesh('greymatter_domain.msh', greymatter_domain)
+pymesh.save_mesh('white_matter_domain.msh', white_matter_domain)
+pymesh.save_mesh('cerebellum_domain.msh', cerebellum_domain)
+pymesh.save_mesh('ventricles_domain.msh', ventricles_domain)
+
+meshio.write_points_cells(
+	"skin_domain.vtk",
+	skin_domain.vertices,
+	[("tetra", skin_domain.voxels)],
+)
+
+meshio.write_points_cells(
+	"skull_domain.vtk",
+	skull_domain.vertices,
+	[("tetra", skull_domain.voxels)],
+)
+
+skin_domain.num_voxels + skull_domain.num_voxels + csf_domain.num_voxels + greymatter_domain.num_voxels + white_matter_domain.num_voxels + cerebellum_domain.num_voxels + ventricles_domain.num_voxels == model_tet.num_voxels
+
+for i in range(0, len(sep)):
+	pymesh.save_mesh('sep_' + str(i) + '.stl', sep[i])
 
 # Import th model files to create the mesh
 print("Importing files") # INFO log
@@ -38,7 +109,7 @@ model = pymesh.merge_meshes((skin_stl, skull_stl, csf_stl))
 
 # Generate the tetrahedrals
 print("Generating volume") # INFO log
-model_tet = pymesh.tetrahedralize(model, 5)
+model_tet = pymesh.tetrahedralize(model, 10)
 #pymesh.save_mesh('gen_file_new.msh', model_tet, ascii=true)
 
 #distance = pymesh.signed_distance_to_mesh(model_tet, model_tet.vertices)
