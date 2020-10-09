@@ -16,7 +16,10 @@ def domain_extract(mesh, boundary, direction='out', cary_zeros=True, keep_zeros=
     Returns:
         [type] -- [At index 0 the current domain can be found. At index 1 the complementary mesh is saved.]
     """
-    distances = pymesh.signed_distance_to_mesh(boundary, mesh.vertices)
+    distances = list(pymesh.signed_distance_to_mesh(boundary, mesh.vertices))
+
+    # The following line has been added after a lot of pain and effort, lasting for more than 3 days! At first it seemed that for some reason the function was keeping the points that we supposed to belong on the other surface. After some accidental printing of the distances to manually check it, I noticed a negative distance but it was -1e-15!!! A distance such small it is zero, but due to round issues it was considered as a negative one!! The solution is to round to a float and maybe a smaller rounding is more than sufficient.
+    distances[0] = np.round(distances[0], 8)
     
     if direction == 'out':
         vert_id_roi = np.where(distances[0] > 0)[0]
