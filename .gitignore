@@ -357,7 +357,11 @@ Sim4Life/
 
 # File/folder exclusion zone
 Dump/
-
+*.stl
+*.msh
+*.vtk
+*.mesh
+*.ply
 
 
 # End of https://www.gitignore.io/api/c,c++,macos,matlab,python,pycharm,jupyternotebooks,jabref
