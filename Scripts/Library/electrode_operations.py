@@ -78,4 +78,4 @@ def electrode_separate(mesh, bounding_roi):
 	vox_id_rest = np.where(vox_id_rest == True)[0]
 	vox_id_rest = np.unique(vox_id_rest)
 
-	return [pymesh.submesh(mesh, vox_id_rest, 0), pymesh.submesh(mesh, vox_id_rest, 0)]
+	return [pymesh.submesh(mesh, vox_id_roi, 0), pymesh.submesh(mesh, vox_id_rest, 0)]
