@@ -79,3 +79,28 @@ def electrode_separate(mesh, bounding_roi):
 	vox_id_rest = np.unique(vox_id_rest)
 
 	return [pymesh.submesh(mesh, vox_id_roi, 0), pymesh.submesh(mesh, vox_id_rest, 0)]
+
+def electrodes_separate(model, domains: list, bounds: list):
+	"""Separate an array of electrodes into individual meshes
+
+	Args:
+		model (pymesh.Mesh.Mesh): The complete meshed model
+		domains (list): The first element shall have the surface mesh and the second the electrode array mesh
+		bounds (list): Bounds of each individual electrode
+
+	Returns:
+		list: First element contains a list of the individual electrodes and the second element contains the surface with any missing points
+	"""
+	electrodes = [] # Create an empty list of electrodes
+	electrode = electrode_separate(domains[1], bounds[0]) # First element
+	electrodes.append(electrode[0])
+
+	del bounds[0] # Remove the first element from the list
+
+	for bound in bounds:
+		electrode = electrode_separate(electrode[1], bound)
+		electrodes.append(electrode[0])
+	
+	rest_surface = pymesh.submesh(model, np.hstack((domains[0].get_attribute('ori_voxel_index').astype(np.int32), electrode[1].get_attribute('ori_voxel_index').astype(np.int32))), 0)
+
+	return [electrodes, rest_surface]
