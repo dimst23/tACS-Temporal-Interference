@@ -78,7 +78,10 @@ def electrode_separate(mesh, bounding_roi):
 	vox_id_rest = np.where(vox_id_rest == True)[0]
 	vox_id_rest = np.unique(vox_id_rest)
 
-	return [pymesh.submesh(mesh, vox_id_roi, 0), pymesh.submesh(mesh, vox_id_rest, 0)]
+	if vox_id_rest.size == 0:
+		return [pymesh.submesh(mesh, vox_id_roi, 0), 0]
+	else:
+		return [pymesh.submesh(mesh, vox_id_roi, 0), pymesh.submesh(mesh, vox_id_rest, 0)]
 
 def electrodes_separate(model, domains: list, bounds: list):
 	"""Separate an array of electrodes into individual meshes
@@ -101,6 +104,10 @@ def electrodes_separate(model, domains: list, bounds: list):
 		electrode = electrode_separate(electrode[1], bound)
 		electrodes.append(electrode[0])
 	
-	rest_surface = pymesh.submesh(model, np.hstack((domains[0].get_attribute('ori_voxel_index').astype(np.int32), electrode[1].get_attribute('ori_voxel_index').astype(np.int32))), 0)
+	if type(electrode[1]) is int:
+		rest_surface = pymesh.submesh(model, np.hstack((domains[0].get_attribute('ori_voxel_index').astype(np.int32))), 0)
+	else:
+		rest_surface = pymesh.submesh(model, np.hstack((domains[0].get_attribute('ori_voxel_index').astype(np.int32), electrode[1].get_attribute('ori_voxel_index').astype(np.int32))), 0)
+
 
 	return [electrodes, rest_surface]
