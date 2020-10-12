@@ -50,9 +50,6 @@ s4_stl = pymesh.load_mesh(base_path + 'spheres_4.stl')
 ##### Import th model files to create the mesh
 
 # Generate the mesh of the model
-print("Merging meshes") # INFO log
-#model = pymesh.merge_meshes((s1_stl, s2_stl, s3_stl))
-
 ##### Electrodes
 s1_stl.enable_connectivity()
 
@@ -101,24 +98,7 @@ elec_df_vcc = pymesh.generate_cylinder(p_i_df_vcc - (width*cr_df_vcc)/4., p_i_df
 
 elec_df_gnd = pymesh.generate_cylinder(p_i_df_gnd - (width*cr_df_gnd)/4., p_i_df_gnd + (width*cr_df_gnd)/4., radius, radius, elements)
 
-
-#elec_base_vcc = pymesh.boolean(elec_base_vcc, s1_stl, 'difference')
-
-#model = pymesh.merge_meshes((s1_stl, s2_stl, s3_stl, elec_base_vcc))
-#outer = pymesh.compute_outer_hull(model) # Get the outer shell with the electrode
-
-#model = pymesh.merge_meshes((s1_stl, elec_base_vcc))
-#outer_hull = pymesh.compute_outer_hull(model)
-
-# Create the surface with the electrode mesh imprinted
-#electrode_tan_mesh = pymesh.boolean(elec_base_vcc, s1_stl, 'difference')
-#outer_diff = pymesh.boolean(outer_hull, electrode_tan_mesh, 'difference')
-#part_model_df = pymesh.tetrahedralize(outer_diff, MAX_RADIUS)
-
-#pymesh.save_mesh('sph_tet.msh', part_model_df)
-
-
-
+# Generate the meshes and separate the electrodes
 elec_meshes = pymesh.merge_meshes((elec_base_vcc, elec_base_gnd, elec_df_vcc, elec_df_gnd))
 sub_outer = add_electrode(s1_stl, elec_meshes)
 
