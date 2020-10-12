@@ -51,7 +51,10 @@ def domain_extract(mesh, boundary, direction='out', cary_zeros=True, keep_zeros=
 		vox_id_roi_0 = np.where(np.sum(vox_id_roi_0, axis=1) == 4)[0]
 		vox_id_roi = np.unique(np.hstack((vox_id_roi, vox_id_roi_0)))
 	
-	return [pymesh.submesh(mesh, vox_id_roi, 0), pymesh.submesh(mesh, vox_id_rest, 0)]
+	if vox_id_rest.size == 0:
+		return [pymesh.submesh(mesh, vox_id_roi, 0), 0]
+	else:
+		return [pymesh.submesh(mesh, vox_id_roi, 0), pymesh.submesh(mesh, vox_id_rest, 0)]
 
 def mesh_form(meshes: list, boundary_order: list, extract_directions: list, zero_operations: list, output_order: list):
 	"""[summary]
@@ -74,7 +77,9 @@ def mesh_form(meshes: list, boundary_order: list, extract_directions: list, zero
 		else:
 			dm = domain_extract(dm[1], meshes[1][boundary_order[i]], direction=extract_directions[i], cary_zeros=zero_operations[i][0], keep_zeros=zero_operations[i][1])
 		domains.insert(output_order[i], dm[0])
-	domains.insert(output_order[-1], dm[1])
+
+	if type(dm[1]) is not int:
+		domains.insert(output_order[-1], dm[1])
 	return domains
 
 def mesh_conditioning(meshes: list):
