@@ -37,9 +37,10 @@ def get_conductivity(ts, coors, mode=None, equations=None, term=None, problem=No
 
 ## Materials
 conductivity_values = {
-	'Skin': 0.3300,
-	'Skull': 0.0042,
+	'Skin': 0.17,
+	'Skull': 0.003504,
 	'CSF': 1.776,
+	'Brain': 0.234,
 	'Base_VCC': 5.96e7, # Copper
 	'Base_GND': 5.96e7,
 	'DF_VCC': 5.96e7,
@@ -57,14 +58,15 @@ regions = {
 	'Skin' : 'cells of group 1',
 	'Skull' : 'cells of group 2',
 	'CSF' : 'cells of group 3',
-	'Base_VCC' : 'cells of group 4',
-	'Base_GND' : 'cells of group 5',
-	'DF_VCC' : 'cells of group 6',
-	'DF_GND' : 'cells of group 7',
-	'Gamma_Base_VCC' : ('cells of group 1 *v cells of group 4', 'facet'),
-	'Gamma_Base_GND' : ('cells of group 1 *v cells of group 5', 'facet'),
-	'Gamma_DF_VCC' : ('cells of group 1 *v cells of group 6', 'facet'),
-	'Gamma_DF_GND' : ('cells of group 1 *v cells of group 7', 'facet'),
+	'Brain' : 'cells of group 4',
+	'Base_VCC' : 'cells of group 5',
+	'Base_GND' : 'cells of group 6',
+	'DF_VCC' : 'cells of group 7',
+	'DF_GND' : 'cells of group 8',
+	'Gamma_Base_VCC' : ('cells of group 1 *v cells of group 5', 'facet'),
+	'Gamma_Base_GND' : ('cells of group 1 *v cells of group 6', 'facet'),
+	'Gamma_DF_VCC' : ('cells of group 1 *v cells of group 7', 'facet'),
+	'Gamma_DF_GND' : ('cells of group 1 *v cells of group 8', 'facet'),
 }
 ## Regions
 
@@ -165,3 +167,19 @@ solvers = {
 	}),
 }
 ## Solvers
+
+options ={
+	'output_dir': '/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor Thesis/Public Repository/tacs-temporal-interference/Scripts/FEM',
+	'post_process_hook': 'post_process',
+}
+
+def post_process(out, problem, state, extend=False):
+	from sfepy.base.base import Struct
+
+	e_field_base = problem.evaluate('-ev_grad.i1.Omega(potential_base)', mode='qp')
+	e_field_df = problem.evaluate('-ev_grad.i1.Omega(potential_df)', mode='qp')
+
+	out['e_field_base'] = Struct(name='e_field_base', mode='cell', data=e_field_base, dofs=None)
+	out['e_field_df'] = Struct(name='e_field_df', mode='cell', data=e_field_df, dofs=None)
+
+	return out
