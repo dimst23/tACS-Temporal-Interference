@@ -56,7 +56,7 @@ def domain_extract(mesh, boundary, direction='out', cary_zeros=True, keep_zeros=
 	else:
 		return [pymesh.submesh(mesh, vox_id_roi, 0), pymesh.submesh(mesh, vox_id_rest, 0)]
 
-def mesh_form(meshes: list, boundary_order: list, extract_directions: list, zero_operations: list, output_order: list):
+def mesh_form(meshes: list, extract_directions: list, zero_operations: list, output_order: dict):
 	"""[summary]
 
 	Arguments:
@@ -69,17 +69,21 @@ def mesh_form(meshes: list, boundary_order: list, extract_directions: list, zero
 	Returns:
 		list -- A list of ordered, based on output_order, conditioned meshes
 	"""
-	domains = []
+	domains = {}
+	last_id = 0
 	for i in range(0, len(meshes[1]) - 1):
 		if i == 0:
 			# For the first mesh start from the base
-			dm = domain_extract(meshes[0], meshes[1][boundary_order[i]], direction=extract_directions[i], cary_zeros=zero_operations[i][0], keep_zeros=zero_operations[i][1])
+			dm = domain_extract(meshes[0], meshes[1][i + 1], direction=extract_directions[i], cary_zeros=zero_operations[i][0], keep_zeros=zero_operations[i][1])
 		else:
-			dm = domain_extract(dm[1], meshes[1][boundary_order[i]], direction=extract_directions[i], cary_zeros=zero_operations[i][0], keep_zeros=zero_operations[i][1])
-		domains.insert(output_order[i], dm[0])
+			dm = domain_extract(dm[1], meshes[1][i + 1], direction=extract_directions[i], cary_zeros=zero_operations[i][0], keep_zeros=zero_operations[i][1])
+		#domains.insert(output_order[i], dm[0])
+		domains[output_order[i]] = {'mesh': dm[0], 'id': i}
+		last_id = i + 1
 
 	if type(dm[1]) is not int:
-		domains.insert(output_order[-1], dm[1])
+		#domains.insert(output_order[-1], dm[1])
+		domains[output_order[-1]] = {'mesh': dm[1], 'id': last_id}
 	return domains
 
 def mesh_conditioning(meshes: list):
@@ -97,3 +101,13 @@ def mesh_conditioning(meshes: list):
 			if dups.shape[0] > 0:
 				meshes[j] = pymesh.submesh(meshes[j], dups, 0)
 	return meshes
+
+def boundary_order(init_boundary: list, boundary_surfaces: list):
+	ordered_bounds = []
+	for boundary in init_boundary:
+		for surface in boundary_surfaces:
+			distances = pymesh.distance_to_mesh(surface, boundary.vertices)
+			# Arbitrary number of non zero values
+			if distances[0].shape[0] != np.count_nonzero(distances[0]):
+				ordered_bounds.append(surface)
+	return ordered_bounds
