@@ -258,3 +258,4 @@ Procfile    text
 *.pyc binary
 ## Sim4Life
 *.smash filter=lfs diff=lfs merge=lfs -text
+*.stl filter=lfs diff=lfs merge=lfs -text

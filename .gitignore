@@ -357,7 +357,6 @@ Sim4Life/
 
 # File/folder exclusion zone
 Dump/
-*.stl
 *.msh
 *.vtk
 *.mesh
