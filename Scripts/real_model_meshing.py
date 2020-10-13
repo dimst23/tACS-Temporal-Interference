@@ -1,8 +1,8 @@
 import pymesh
 import numpy as np
 
-import Library.mesh_operations as mesh_ops
-import Library.electrode_operations as electrode_operations
+import Meshing.mesh_operations as mesh_ops
+import Meshing.electrode_operations as electrode_operations
 
 def electrode_position_sphere(radius, theta, phi=0):
 	return np.array([radius*np.cos(np.deg2rad(phi))*np.cos(np.deg2rad(theta)), radius*np.cos(np.deg2rad(phi))*np.sin(np.deg2rad(theta)), radius*np.sin(np.deg2rad(phi))])

@@ -1,9 +1,9 @@
 import pymesh
 import numpy as np
 
-import Library.mesh_operations as mesh_ops
-import Library.electrode_operations as electrode_operations
-import Library.gmsh_write as gmsh_write
+import Meshing.mesh_operations as mesh_ops
+import Meshing.electrode_operations as electrode_operations
+import Meshing.gmsh_write as gmsh_write
 
 MAX_RADIUS = 5
 #base_path = './'
