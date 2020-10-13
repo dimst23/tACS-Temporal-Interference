@@ -1,6 +1,13 @@
 from __future__ import absolute_import
+
+# Add the other script file path, used for the modulation envelope
+import sys
+sys.path.append('/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor Thesis/Public Repository/tacs-temporal-interference/Scripts/')
+
 from sfepy import data_dir
 import numpy as np
+
+import Library.modulation_envelope as mod_env
 
 filename_mesh = '/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor Thesis/Public Repository/tacs-temporal-interference/Scripts/msh.vtk'
 
@@ -55,18 +62,18 @@ materials = {
 ## Regions
 regions = {
 	'Omega': 'all',
-	'Skin' : 'cells of group 1',
-	'Skull' : 'cells of group 2',
-	'CSF' : 'cells of group 3',
-	'Brain' : 'cells of group 4',
-	'Base_VCC' : 'cells of group 5',
-	'Base_GND' : 'cells of group 6',
-	'DF_VCC' : 'cells of group 7',
-	'DF_GND' : 'cells of group 8',
-	'Gamma_Base_VCC' : ('cells of group 1 *v cells of group 5', 'facet'),
-	'Gamma_Base_GND' : ('cells of group 1 *v cells of group 6', 'facet'),
-	'Gamma_DF_VCC' : ('cells of group 1 *v cells of group 7', 'facet'),
-	'Gamma_DF_GND' : ('cells of group 1 *v cells of group 8', 'facet'),
+	'Skin' : 'cells of group 0',
+	'Skull' : 'cells of group 1',
+	'CSF' : 'cells of group 2',
+	'Brain' : 'cells of group 3',
+	'Base_VCC' : 'cells of group 4',
+	'Base_GND' : 'cells of group 5',
+	'DF_VCC' : 'cells of group 6',
+	'DF_GND' : 'cells of group 7',
+	'Gamma_Base_VCC' : ('cells of group 0 *v cells of group 4', 'facet'),
+	'Gamma_Base_GND' : ('cells of group 0 *v cells of group 5', 'facet'),
+	'Gamma_DF_VCC' : ('cells of group 0 *v cells of group 6', 'facet'),
+	'Gamma_DF_GND' : ('cells of group 0 *v cells of group 7', 'facet'),
 }
 ## Regions
 
@@ -162,7 +169,7 @@ functions = {
 solvers = {
 	'ls' : ('ls.scipy_direct', {}),
 	'newton' : ('nls.newton', {
-		'i_max'      : 4,
+		'i_max'      : 1,
 		'eps_a'      : 1e-5,
 	}),
 }
@@ -179,7 +186,25 @@ def post_process(out, problem, state, extend=False):
 	e_field_base = problem.evaluate('-ev_grad.i1.Omega(potential_base)', mode='qp')
 	e_field_df = problem.evaluate('-ev_grad.i1.Omega(potential_df)', mode='qp')
 
+	# Calculate the maximum modulation envelope
+	modulation = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0])
+	modulation = np.repeat(modulation, 4, axis=0).reshape((e_field_base.shape[0], 4, 3, 1))
+
+	# Calculate the directional modulation envelope
+	modulation_x = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0], dir_vector=[1, 0, 0])
+	modulation_y = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0], dir_vector=[0, 1, 0])
+	modulation_z = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0], dir_vector=[0, 0, 1])
+
+	modulation_x = np.repeat(modulation_x, 4, axis=0).reshape((e_field_base.shape[0], 4, 3, 1))
+	modulation_y = np.repeat(modulation_y, 4, axis=0).reshape((e_field_base.shape[0], 4, 3, 1))
+	modulation_z = np.repeat(modulation_z, 4, axis=0).reshape((e_field_base.shape[0], 4, 3, 1))
+
+	# Save the output
 	out['e_field_base'] = Struct(name='e_field_base', mode='cell', data=e_field_base, dofs=None)
 	out['e_field_df'] = Struct(name='e_field_df', mode='cell', data=e_field_df, dofs=None)
+	out['max_modulation'] = Struct(name='max_modulation', mode='cell', data=modulation, dofs=None)
+	out['modulation_x'] = Struct(name='modulation_x', mode='cell', data=modulation_x, dofs=None)
+	out['modulation_y'] = Struct(name='modulation_y', mode='cell', data=modulation_y, dofs=None)
+	out['modulation_z'] = Struct(name='modulation_z', mode='cell', data=modulation_z, dofs=None)
 
 	return out
