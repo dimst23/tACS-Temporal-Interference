@@ -39,14 +39,16 @@ def add_electrode(surface_mesh, electrode_mesh):
 
 MAX_RADIUS = 5
 #base_path = './'
-base_path = '/mnt/d/Thesis/Tests/model/fixed/'
+#base_path = '/mnt/d/Thesis/Tests/model/fixed/'
+base_path = '/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor Thesis/Public Repository/tacs-temporal-interference/Scripts/'
 
 ##### Import th model files to create the mesh
 print("Importing files") # INFO log
-s1_stl = pymesh.load_mesh(base_path + 'spheres_1.stl')
-s2_stl = pymesh.load_mesh(base_path + 'spheres_2.stl')
-s3_stl = pymesh.load_mesh(base_path + 'spheres_3.stl')
-s4_stl = pymesh.load_mesh(base_path + 'spheres_4.stl')
+#outer_stl = pymesh.load_mesh(base_path + 'spheres_outer.stl')
+s1_stl = pymesh.load_mesh(base_path + 'spheres_skin.stl')
+s2_stl = pymesh.load_mesh(base_path + 'spheres_skull.stl')
+s3_stl = pymesh.load_mesh(base_path + 'spheres_csf.stl')
+s4_stl = pymesh.load_mesh(base_path + 'spheres_brain.stl')
 ##### Import th model files to create the mesh
 
 # Generate the mesh of the model
@@ -68,10 +70,10 @@ phi_df_gnd = 0
 ##### Electrode position
 
 ##### Electrode parameters
-scalp_radius = 85
+scalp_radius = np.amax(s1_stl.vertices[:, 0])
 radius = 4
 width = 3
-elements = 100
+elements = 200
 ##### Electrode parameters
 ##### Electrodes
 
@@ -110,7 +112,8 @@ sp_tet = pymesh.tetrahedralize(sub_outer[1], MAX_RADIUS)
 boundary_surfaces_elec = pymesh.form_mesh(sp_tet.vertices, sp_tet.faces)
 boundary_surfaces = pymesh.form_mesh(part_model.vertices, part_model.faces)
 boundary_surfaces = pymesh.separate_mesh(boundary_surfaces)
-boundary_surfaces[0] = boundary_surfaces_elec
+
+boundary_surfaces = mesh_ops.boundary_order([s1_stl, s2_stl, s3_stl, s4_stl], boundary_surfaces)
 
 dom_roi_1 = {
 	'x_min': np.amin(elec_base_vcc.vertices[:, 0]),
@@ -151,21 +154,33 @@ mesh_domains_elec = mesh_ops.domain_extract(part_model, boundary_surfaces_elec)
 
 elecs_l, st_srf = electrode_operations.electrodes_separate(part_model, mesh_domains_elec, [dom_roi_1, dom_roi_2, dom_roi_3, dom_roi_4])
 
-msh_f = mesh_ops.mesh_form([st_srf, boundary_surfaces], [2, 1, 3], ['out', 'out', 'in'], [[True, False], [True, False], [False, True]], [0, 2, 1, 3])
+'''
+pymesh.save_mesh('st_srf1.stl', boundary_surfaces[0])
+pymesh.save_mesh('st_srf2.stl', boundary_surfaces[1])
+pymesh.save_mesh('st_srf3.stl', boundary_surfaces[2])
+pymesh.save_mesh('st_srf4.stl', boundary_surfaces[3])
+'''
+
+#msh_f = mesh_ops.mesh_form([st_srf, boundary_surfaces], [2, 1, 3], ['out', 'out', 'out'], [[True, False], [True, False], [True, False]], [0, 2, 1, 3])
+msh_f = mesh_ops.mesh_form([st_srf, boundary_surfaces], ['out', 'out', 'out'], [[True, False], [True, False], [True, False]], ['Skin', 'Skull', 'CSF', 'Brain'])
 
 # Save the mesh is VTK format
 import meshio
 
 em_c = np.empty(part_model.num_voxels)
-em_t = np.empty(part_model.num_voxels)
 em_p = np.empty(part_model.num_vertices)
 
-i = 1
+i = 4
+'''
 for mesh in msh_f:
 	em_c[mesh.get_attribute("ori_voxel_index").astype(np.int32)] = i
 	em_t[mesh.get_attribute("ori_voxel_index").astype(np.int32)] = 20
 	em_p[np.unique(part_model.voxels[mesh.get_attribute("ori_voxel_index").astype(np.int32)])] = i
 	i = i + 1
+'''
+for key in msh_f.keys():
+	em_c[msh_f[key]['mesh'].get_attribute("ori_voxel_index").astype(np.int32)] = msh_f[key]['id']
+	em_p[np.unique(part_model.voxels[msh_f[key]['mesh'].get_attribute("ori_voxel_index").astype(np.int32)])] = msh_f[key]['id']
 
 for elec in elecs_l:
 	em_c[elec.get_attribute("ori_voxel_index").astype(np.int32)] = i

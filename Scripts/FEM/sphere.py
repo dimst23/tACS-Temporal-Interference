@@ -91,7 +91,7 @@ field_1 = {
 ebc_1 = {
 	'name' : 'base_vcc',
 	'region' : 'Gamma_Base_VCC',
-	'dofs' : {'potential_base.0' : 10.0},
+	'dofs' : {'potential_base.0' : 150.0},
 }
 ebc_2 = {
 	'name' : 'base_gnd',
@@ -102,7 +102,7 @@ ebc_2 = {
 ebc_3 = {
 	'name' : 'df_vcc',
 	'region' : 'Gamma_DF_VCC',
-	'dofs' : {'potential_df.0' : 10.0},
+	'dofs' : {'potential_df.0' : 150.0},
 }
 ebc_4 = {
 	'name' : 'df_gnd',
@@ -188,16 +188,16 @@ def post_process(out, problem, state, extend=False):
 
 	# Calculate the maximum modulation envelope
 	modulation = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0])
-	modulation = np.repeat(modulation, 4, axis=0).reshape((e_field_base.shape[0], 4, 3, 1))
+	modulation = np.repeat(modulation, 4, axis=0).reshape((e_field_base.shape[0], 4, 1, 1))
 
 	# Calculate the directional modulation envelope
 	modulation_x = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0], dir_vector=[1, 0, 0])
 	modulation_y = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0], dir_vector=[0, 1, 0])
 	modulation_z = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0], dir_vector=[0, 0, 1])
 
-	modulation_x = np.repeat(modulation_x, 4, axis=0).reshape((e_field_base.shape[0], 4, 3, 1))
-	modulation_y = np.repeat(modulation_y, 4, axis=0).reshape((e_field_base.shape[0], 4, 3, 1))
-	modulation_z = np.repeat(modulation_z, 4, axis=0).reshape((e_field_base.shape[0], 4, 3, 1))
+	modulation_x = np.repeat(modulation_x, 4, axis=0).reshape((e_field_base.shape[0], 4, 1, 1))
+	modulation_y = np.repeat(modulation_y, 4, axis=0).reshape((e_field_base.shape[0], 4, 1, 1))
+	modulation_z = np.repeat(modulation_z, 4, axis=0).reshape((e_field_base.shape[0], 4, 1, 1))
 
 	# Save the output
 	out['e_field_base'] = Struct(name='e_field_base', mode='cell', data=e_field_base, dofs=None)
