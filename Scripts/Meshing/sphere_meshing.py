@@ -5,42 +5,10 @@ import Library.mesh_operations as mesh_ops
 import Library.electrode_operations as electrode_operations
 import Library.gmsh_write as gmsh_write
 
-def electrode_position_sphere(radius, theta, phi=0):
-	return np.array([radius*np.cos(np.deg2rad(phi))*np.cos(np.deg2rad(theta)), radius*np.cos(np.deg2rad(phi))*np.sin(np.deg2rad(theta)), radius*np.sin(np.deg2rad(phi))])
-
-def orient_electrode(mesh, init_point, delta_point):
-	dist = pymesh.signed_distance_to_mesh(mesh, init_point)
-	face = dist[1][0]
-	#
-	# Create a vector with the direction of the face
-	p_1 = mesh.vertices[mesh.faces[face][0]]
-	p_2 = mesh.vertices[mesh.faces[face][1]]
-	dir_vector = p_1 - p_2
-	dir_vector = dir_vector/np.linalg.norm(dir_vector)
-	
-	normal = np.cross(delta_point, dir_vector)
-	return normal/np.linalg.norm(normal)
-
-def add_electrode(surface_mesh, electrode_mesh):
-	# Get the surface outline including the electrode
-	model = pymesh.merge_meshes((surface_mesh, electrode_mesh))
-	outer_hull = pymesh.compute_outer_hull(model)
-	#
-	# Create the surface with the electrode mesh imprinted
-	electrode_tan_mesh = pymesh.boolean(electrode_mesh, surface_mesh, 'difference')
-	outer_diff = pymesh.boolean(outer_hull, electrode_tan_mesh, 'difference')
-	conditioned_surface = pymesh.merge_meshes((outer_diff, electrode_tan_mesh))
-	#
-	# Generate the surface with the electrode on
-	face_id = np.arange(conditioned_surface.num_faces)
-	conditioned_surface = pymesh.remove_duplicated_vertices(conditioned_surface)[0]  # Remove any duplicate vertices
-	#
-	return [pymesh.submesh(conditioned_surface, np.isin(face_id, pymesh.detect_self_intersection(conditioned_surface)[:, 0], invert=True), 0), outer_diff]  # Get rid of the duplicate faces on the tangent surface, without merging the points
-
 MAX_RADIUS = 5
 #base_path = './'
 #base_path = '/mnt/d/Thesis/Tests/model/fixed/'
-base_path = '/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor Thesis/Public Repository/tacs-temporal-interference/Scripts/'
+base_path = '/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor Thesis/Public Repository/tacs-temporal-interference/CAD/Sphere/'
 
 ##### Import th model files to create the mesh
 print("Importing files") # INFO log
@@ -79,17 +47,17 @@ elements = 200
 
 pid = np.array([0, 0, -width])
 
-p_i_base_vcc = electrode_position_sphere(scalp_radius, theta_base_vcc)
-cr_base_vcc = orient_electrode(s1_stl, p_i_base_vcc, pid)
+p_i_base_vcc = electrode_operations.electrode_position_sphere(scalp_radius, theta_base_vcc)
+cr_base_vcc = electrode_operations.orient_electrode_sphere(s1_stl, p_i_base_vcc, pid)
 
-p_i_base_gnd = electrode_position_sphere(scalp_radius, theta_base_gnd)
-cr_base_gnd = orient_electrode(s1_stl, p_i_base_gnd, pid)
+p_i_base_gnd = electrode_operations.electrode_position_sphere(scalp_radius, theta_base_gnd)
+cr_base_gnd = electrode_operations.orient_electrode_sphere(s1_stl, p_i_base_gnd, pid)
 
-p_i_df_vcc = electrode_position_sphere(scalp_radius, theta_df_vcc)
-cr_df_vcc = orient_electrode(s1_stl, p_i_df_vcc, pid)
+p_i_df_vcc = electrode_operations.electrode_position_sphere(scalp_radius, theta_df_vcc)
+cr_df_vcc = electrode_operations.orient_electrode_sphere(s1_stl, p_i_df_vcc, pid)
 
-p_i_df_gnd = electrode_position_sphere(scalp_radius, theta_df_gnd)
-cr_df_gnd = orient_electrode(s1_stl, p_i_df_gnd, pid)
+p_i_df_gnd = electrode_operations.electrode_position_sphere(scalp_radius, theta_df_gnd)
+cr_df_gnd = electrode_operations.orient_electrode_sphere(s1_stl, p_i_df_gnd, pid)
 
 
 elec_base_vcc = pymesh.generate_cylinder(p_i_base_vcc - (width*cr_base_vcc)/4., p_i_base_vcc + (width*cr_base_vcc)/4., radius, radius, elements)
@@ -102,7 +70,7 @@ elec_df_gnd = pymesh.generate_cylinder(p_i_df_gnd - (width*cr_df_gnd)/4., p_i_df
 
 # Generate the meshes and separate the electrodes
 elec_meshes = pymesh.merge_meshes((elec_base_vcc, elec_base_gnd, elec_df_vcc, elec_df_gnd))
-sub_outer = add_electrode(s1_stl, elec_meshes)
+sub_outer = electrode_operations.add_electrode(s1_stl, elec_meshes)
 
 sub_outer[0] = pymesh.merge_meshes((sub_outer[0], s2_stl, s3_stl, s4_stl))
 part_model = pymesh.tetrahedralize(sub_outer[0], MAX_RADIUS)

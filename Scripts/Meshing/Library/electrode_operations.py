@@ -1,6 +1,42 @@
 import pymesh
 import numpy as np
 
+def electrode_position_sphere(radius, theta, phi=0):
+	"""[summary]
+
+	Args:
+		radius ([type]): [description]
+		theta ([type]): [description]
+		phi (int, optional): [description]. Defaults to 0.
+
+	Returns:
+		[type]: [description]
+	"""
+	return np.array([radius*np.cos(np.deg2rad(phi))*np.cos(np.deg2rad(theta)), radius*np.cos(np.deg2rad(phi))*np.sin(np.deg2rad(theta)), radius*np.sin(np.deg2rad(phi))])
+
+def orient_electrode_sphere(mesh, init_point, delta_point):
+	"""[summary]
+
+	Args:
+		mesh ([type]): [description]
+		init_point ([type]): [description]
+		delta_point ([type]): [description]
+
+	Returns:
+		[type]: [description]
+	"""
+	dist = pymesh.signed_distance_to_mesh(mesh, init_point)
+	face = dist[1][0]
+	#
+	# Create a vector with the direction of the face
+	p_1 = mesh.vertices[mesh.faces[face][0]]
+	p_2 = mesh.vertices[mesh.faces[face][1]]
+	dir_vector = p_1 - p_2
+	dir_vector = dir_vector/np.linalg.norm(dir_vector)
+	
+	normal = np.cross(delta_point, dir_vector)
+	return normal/np.linalg.norm(normal)
+
 def orient_electrode(mesh, init_point):
 	"""Orient the electrode along the surface. Connectivy shall be enabled in the mesh that has been given.
 
@@ -46,7 +82,7 @@ def add_electrode(surface_mesh, electrode_mesh):
 	# Generate the surface with the electrode on
 	face_id = np.arange(conditioned_surface.num_faces)
 	conditioned_surface = pymesh.remove_duplicated_vertices(conditioned_surface)[0] # Remove any duplicate vertices
-	#
+	
 	return [pymesh.submesh(conditioned_surface, np.isin(face_id, pymesh.detect_self_intersection(conditioned_surface)[:, 0], invert=True), 0), outer_diff]  # Get rid of the duplicate faces on the tangent surface, without merging the points
 
 def electrode_separate(mesh, bounding_roi):
