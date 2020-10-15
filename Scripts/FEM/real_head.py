@@ -2,14 +2,18 @@ from __future__ import absolute_import
 
 # Add the other script file path, used for the modulation envelope
 import sys
-sys.path.append('/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor Thesis/Public Repository/tacs-temporal-interference/Scripts/')
+import yaml
 
 from sfepy import data_dir
 import numpy as np
 
+with open('sim_settings.yml') as stream:
+	settings = yaml.safe_load(stream)
+
+sys.path.append(settings['SfePy']['lib_path'])
 import Meshing.modulation_envelope as mod_env
 
-filename_mesh = '/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor Thesis/Public Repository/tacs-temporal-interference/Scripts/msh_real.vtk'
+filename_mesh = settings['SfePy']['mesh_file']
 
 def get_conductivity(ts, coors, mode=None, equations=None, term=None, problem=None, conductivities=None):
 	"""[summary]
@@ -186,7 +190,7 @@ solvers = {
 ## Solvers
 
 options ={
-	'output_dir': '/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor Thesis/Public Repository/tacs-temporal-interference/Scripts/FEM',
+	'output_dir': settings['SfePy']['output_dir'],
 	'post_process_hook': 'post_process',
 }
 
