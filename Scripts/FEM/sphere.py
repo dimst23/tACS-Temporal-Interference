@@ -7,7 +7,7 @@ sys.path.append('/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor
 from sfepy import data_dir
 import numpy as np
 
-import Library.modulation_envelope as mod_env
+import Meshing.modulation_envelope as mod_env
 
 filename_mesh = '/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor Thesis/Public Repository/tacs-temporal-interference/Scripts/msh.vtk'
 
@@ -70,11 +70,18 @@ regions = {
 	'Base_GND' : 'cells of group 5',
 	'DF_VCC' : 'cells of group 6',
 	'DF_GND' : 'cells of group 7',
+	'Gamma_Base_VCC' : ('vertices of group 4', 'facet'),
+	'Gamma_Base_GND' : ('vertices of group 5', 'facet'),
+	'Gamma_DF_VCC' : ('vertices of group 6', 'facet'),
+	'Gamma_DF_GND' : ('vertices of group 7', 'facet'),
+}
+
+'''
 	'Gamma_Base_VCC' : ('cells of group 0 *v cells of group 4', 'facet'),
 	'Gamma_Base_GND' : ('cells of group 0 *v cells of group 5', 'facet'),
 	'Gamma_DF_VCC' : ('cells of group 0 *v cells of group 6', 'facet'),
 	'Gamma_DF_GND' : ('cells of group 0 *v cells of group 7', 'facet'),
-}
+'''
 ## Regions
 
 ## Fields
@@ -96,7 +103,7 @@ ebc_1 = {
 ebc_2 = {
 	'name' : 'base_gnd',
 	'region' : 'Gamma_Base_GND',
-	'dofs' : {'potential_base.0' : 0},
+	'dofs' : {'potential_base.0' : -150.0},
 }
 
 ebc_3 = {
@@ -107,7 +114,7 @@ ebc_3 = {
 ebc_4 = {
 	'name' : 'df_gnd',
 	'region' : 'Gamma_DF_GND',
-	'dofs' : {'potential_df.0' : 0},
+	'dofs' : {'potential_df.0' : -150.0},
 }
 ## Boundary Conditions
 
