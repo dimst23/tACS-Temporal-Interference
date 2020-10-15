@@ -70,23 +70,23 @@ def mesh_form(meshes: list, extract_directions: list, zero_operations: list, out
 		list -- A list of ordered, based on output_order, conditioned meshes
 	"""
 	domains = {}
-	last_id = 0
+	keys = list(output_order.keys())
+
 	for i in range(0, len(meshes[1]) - 1):
 		if i == 0:
 			# For the first mesh start from the base
-			dm = domain_extract(meshes[0], meshes[1][i + 1], direction=extract_directions[i], cary_zeros=zero_operations[i][0], keep_zeros=zero_operations[i][1])
+			dm = domain_extract(meshes[0], meshes[1][extract_directions[i][1]], direction=extract_directions[i][0], cary_zeros=zero_operations[i][0], keep_zeros=zero_operations[i][1])
 		else:
-			dm = domain_extract(dm[1], meshes[1][i + 1], direction=extract_directions[i], cary_zeros=zero_operations[i][0], keep_zeros=zero_operations[i][1])
+			dm = domain_extract(dm[1], meshes[1][extract_directions[i][1]], direction=extract_directions[i][0], cary_zeros=zero_operations[i][0], keep_zeros=zero_operations[i][1])
 		#domains.insert(output_order[i], dm[0])
-		domains[output_order[i]] = {'mesh': dm[0], 'id': i}
-		last_id = i + 1
+		domains[keys[i]] = {'mesh': dm[0], 'id': output_order[keys[i]]}
 
 	if type(dm[1]) is not int:
 		#domains.insert(output_order[-1], dm[1])
-		domains[output_order[-1]] = {'mesh': dm[1], 'id': last_id}
+		domains[keys[-1]] = {'mesh': dm[1], 'id': output_order[keys[-1]]}
 	return domains
 
-def mesh_conditioning(meshes: list):
+def mesh_conditioning(meshes: dict):
 	"""[summary]
 
 	Arguments:
@@ -95,11 +95,14 @@ def mesh_conditioning(meshes: list):
 	Returns:
 		list -- [description]
 	"""
-	for i in range(0, len(meshes)):
-		for j in range(i + 1, len(meshes)):
-			dups = np.where(np.isin(meshes[j].get_attribute("ori_voxel_index"), meshes[i].get_attribute("ori_voxel_index"), invert=True))[0]
+	keys = list(meshes.keys())
+	msh = [list(msh.values())[0] for msh in list(meshes.values())]
+
+	for i in range(0, len(msh)):
+		for j in range(i + 1, len(msh)):
+			dups = np.where(np.isin(msh[j].get_attribute("ori_voxel_index"), msh[i].get_attribute("ori_voxel_index"), invert=True))[0]
 			if dups.shape[0] > 0:
-				meshes[j] = pymesh.submesh(meshes[j], dups, 0)
+				meshes[keys[j]]['mesh'] = pymesh.submesh(msh[j], dups, 0)
 	return meshes
 
 def boundary_order(init_boundary: list, boundary_surfaces: list):
