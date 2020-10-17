@@ -7,13 +7,13 @@ import yaml
 from sfepy import data_dir
 import numpy as np
 
-with open('sim_settings.yml') as stream:
+with open('FEM/sim_settings.yml') as stream:
 	settings = yaml.safe_load(stream)
 
-sys.path.append(settings['SfePy']['lib_path'])
+sys.path.append(settings['SfePy']['real_brain']['lib_path'])
 import Meshing.modulation_envelope as mod_env
 
-filename_mesh = settings['SfePy']['mesh_file']
+filename_mesh = settings['SfePy']['real_brain']['mesh_file']
 
 def get_conductivity(ts, coors, mode=None, equations=None, term=None, problem=None, conductivities=None):
 	"""[summary]
@@ -190,7 +190,7 @@ solvers = {
 ## Solvers
 
 options ={
-	'output_dir': settings['SfePy']['output_dir'],
+	'output_dir': settings['SfePy']['real_brain']['output_dir'],
 	'post_process_hook': 'post_process',
 }
 
