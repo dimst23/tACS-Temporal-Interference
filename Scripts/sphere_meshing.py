@@ -130,7 +130,7 @@ pymesh.save_mesh('st_srf4.stl', boundary_surfaces[3])
 '''
 
 #msh_f = mesh_ops.mesh_form([st_srf, boundary_surfaces], [2, 1, 3], ['out', 'out', 'out'], [[True, False], [True, False], [True, False]], [0, 2, 1, 3])
-msh_f = mesh_ops.mesh_form([st_srf, boundary_surfaces], ['out', 'out', 'out'], [[True, False], [True, False], [True, False]], ['Skin', 'Skull', 'CSF', 'Brain'])
+msh_f = mesh_ops.mesh_form([st_srf, boundary_surfaces], [['out', 1], ['out', 2], ['out', 3]], [[True, False], [True, False], [True, False]], {'Skin': 0, 'Skull': 1, 'CSF': 2, 'Brain': 3,})
 
 # Save the mesh is VTK format
 import meshio
