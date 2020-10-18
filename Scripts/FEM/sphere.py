@@ -8,7 +8,7 @@ from sfepy import data_dir
 import numpy as np
 
 # Import the settings
-with open('FEM/sim_settings.yml') as stream:
+with open('/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor Thesis/Public Repository/tacs-temporal-interference/Scripts/FEM/sim_settings.yml') as stream:
 	settings = yaml.safe_load(stream)
 
 sys.path.append(settings['SfePy']['sphere']['lib_path'])
@@ -103,23 +103,23 @@ field_1 = {
 ebc_1 = {
 	'name' : 'base_vcc',
 	'region' : 'Gamma_Base_VCC',
-	'dofs' : {'potential_base.0' : 150.0},
+	'dofs' : {'potential_base.0' : 450.0},
 }
 ebc_2 = {
 	'name' : 'base_gnd',
 	'region' : 'Gamma_Base_GND',
-	'dofs' : {'potential_base.0' : -150.0},
+	'dofs' : {'potential_base.0' : -450.0},
 }
 
 ebc_3 = {
 	'name' : 'df_vcc',
 	'region' : 'Gamma_DF_VCC',
-	'dofs' : {'potential_df.0' : 150.0},
+	'dofs' : {'potential_df.0' : 450.0},
 }
 ebc_4 = {
 	'name' : 'df_gnd',
 	'region' : 'Gamma_DF_GND',
-	'dofs' : {'potential_df.0' : -150.0},
+	'dofs' : {'potential_df.0' : -450.0},
 }
 ## Boundary Conditions
 
@@ -179,12 +179,24 @@ functions = {
 
 ## Solvers
 solvers = {
-	'ls' : ('ls.scipy_direct', {}),
+	'ls' : ('ls.pyamg', {
+		'i_max': 100,
+		'eps_r': 1e-12,
+	}),
 	'newton' : ('nls.newton', {
 		'i_max'      : 1,
-		'eps_a'      : 1e-5,
+		'eps_a'      : 1e-4,
+		'eps_r'      : 1.0,
+		'macheps'	 : 1e-10,
 	}),
 }
+'''
+	'ls' : ('ls.petsc', {
+		'i_max': 10000,
+		'eps_r': 1e-12,
+	}),
+'''
+# 'ls' : ('ls.scipy_direct', {}),
 ## Solvers
 
 options ={
@@ -199,8 +211,9 @@ def post_process(out, problem, state, extend=False):
 	e_field_df = problem.evaluate('-ev_grad.i1.Omega(potential_df)', mode='qp')
 
 	# Calculate the maximum modulation envelope
-	modulation = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0])
-	modulation = np.repeat(modulation, 4, axis=0).reshape((e_field_base.shape[0], 4, 1, 1))
+	modulation_cells = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0])
+	modulation_cells = np.repeat(modulation_cells, 4, axis=0).reshape((e_field_base.shape[0], 4, 1, 1))
+	modulation_points = modulation_cells.flatten()[np.unique(problem.domain.mesh.get_conn('3_4').flatten(), return_index=True)[1]]
 
 	# Calculate the directional modulation envelope
 	modulation_x = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0], dir_vector=[1, 0, 0])
@@ -214,7 +227,8 @@ def post_process(out, problem, state, extend=False):
 	# Save the output
 	out['e_field_base'] = Struct(name='e_field_base', mode='cell', data=e_field_base, dofs=None)
 	out['e_field_df'] = Struct(name='e_field_df', mode='cell', data=e_field_df, dofs=None)
-	out['max_modulation'] = Struct(name='max_modulation', mode='cell', data=modulation, dofs=None)
+	out['max_modulation'] = Struct(name='max_modulation', mode='cell', data=modulation_cells, dofs=None)
+	out['max_modulation_pts'] = Struct(name='max_modulation', mode='vertex', data=modulation_points, dofs=None)
 	out['modulation_x'] = Struct(name='modulation_x', mode='cell', data=modulation_x, dofs=None)
 	out['modulation_y'] = Struct(name='modulation_y', mode='cell', data=modulation_y, dofs=None)
 	out['modulation_z'] = Struct(name='modulation_z', mode='cell', data=modulation_z, dofs=None)
