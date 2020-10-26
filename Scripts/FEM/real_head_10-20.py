@@ -229,8 +229,9 @@ def post_process(out, problem, state, extend=False):
 	e_field_df = problem.evaluate('-ev_grad.i1.Omega(potential_df)', mode='qp')
 
 	# Calculate the maximum modulation envelope
-	modulation = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0])
-	modulation = np.repeat(modulation, 4, axis=0).reshape((e_field_base.shape[0], 4, 1, 1))
+	modulation_cells = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0])
+	modulation_cells = np.repeat(modulation_cells, 4, axis=0).reshape((e_field_base.shape[0], 4, 1, 1))
+	modulation_points = modulation_cells.flatten()[np.unique(problem.domain.mesh.get_conn('3_4').flatten(), return_index=True)[1]]
 
 	# Calculate the directional modulation envelope
 	modulation_x = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0], dir_vector=[1, 0, 0])
@@ -244,7 +245,8 @@ def post_process(out, problem, state, extend=False):
 	# Save the output
 	out['e_field_base'] = Struct(name='e_field_base', mode='cell', data=e_field_base, dofs=None)
 	out['e_field_df'] = Struct(name='e_field_df', mode='cell', data=e_field_df, dofs=None)
-	out['max_modulation'] = Struct(name='max_modulation', mode='cell', data=modulation, dofs=None)
+	out['max_modulation'] = Struct(name='max_modulation', mode='cell', data=modulation_cells, dofs=None)
+	out['max_modulation_pts'] = Struct(name='max_modulation_pts', mode='vertex', data=modulation_points, dofs=None)
 	out['modulation_x'] = Struct(name='modulation_x', mode='cell', data=modulation_x, dofs=None)
 	out['modulation_y'] = Struct(name='modulation_y', mode='cell', data=modulation_y, dofs=None)
 	out['modulation_z'] = Struct(name='modulation_z', mode='cell', data=modulation_z, dofs=None)
