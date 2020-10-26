@@ -147,3 +147,29 @@ def electrodes_separate(model, domains: list, bounds: list):
 
 
 	return [electrodes, rest_surface]
+
+def standard_electrode_positioning(elec_names, elec_coords, surface_mesh, width = 3, radius = 4, elements = 150):
+	electrode_array = {}
+	closest_point = pymesh.distance_to_mesh(surface_mesh, elec_coords)[1] # Get the closest point to the one provided
+
+	i = 0
+	for electrode_name in elec_names:
+		p_i = surface_mesh.vertices[surface_mesh.faces[closest_point[i]]][0] # Get the surface vertex coordinates
+		elec_orient = orient_electrode(surface_mesh, p_i) # Orient the electrode perpendicular to the surface
+
+		# Generate the electrode cylinder and save to the output dictionary
+		elec_cylinder = pymesh.generate_cylinder(p_i - (width * elec_orient)/4., p_i + (width * elec_orient)/4., radius, radius, elements)
+		electrode_array[electrode_name] = {
+			'mesh': elec_cylinder,
+			'dom_roi': {
+				'x_min': np.amin(elec_cylinder.vertices[:, 0]),
+				'x_max': np.amax(elec_cylinder.vertices[:, 0]),
+				'y_min': np.amin(elec_cylinder.vertices[:, 1]),
+				'y_max': np.amax(elec_cylinder.vertices[:, 1]),
+				'z_min': np.amin(elec_cylinder.vertices[:, 2]),
+				'z_max': np.amax(elec_cylinder.vertices[:, 2]),
+				},
+			}
+		i = i + 1
+
+	return electrode_array
