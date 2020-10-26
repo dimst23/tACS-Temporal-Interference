@@ -54,10 +54,25 @@ conductivity_values = {
 	'GM': 0.2391,
 	'WM': 0.2651,
     'Cerebellum': 0.6597,
-	'Base_VCC': 5.96e7, # Copper
-	'Base_GND': 5.96e7,
-	'DF_VCC': 5.96e7,
-	'DF_GND': 5.96e7,
+    'Fp1': 5.96e7, # Copper
+    'Fp2': 5.96e7,
+    'F7': 5.96e7,
+    'F3': 5.96e7,
+    'Fz': 5.96e7,
+    'F4': 5.96e7,
+    'F8': 5.96e7,
+    'T7': 5.96e7,
+    'C3': 5.96e7,
+    'Cz': 5.96e7,
+    'C4': 5.96e7,
+    'T8': 5.96e7,
+    'P7': 5.96e7,
+    'P3': 5.96e7,
+    'Pz': 5.96e7,
+    'P4': 5.96e7,
+    'P8': 5.96e7,
+    'O1': 5.96e7,
+    'O2': 5.96e7,
 }
 
 materials = {
@@ -74,21 +89,30 @@ regions = {
 	'GM' : 'cells of group 3',
 	'WM' : 'cells of group 4',
 	'Cerebellum' : 'cells of group 5',
-	'Base_VCC' : 'cells of group 6',
-	'Base_GND' : 'cells of group 7',
-	'DF_VCC' : 'cells of group 8',
-	'DF_GND' : 'cells of group 9',
-    'Gamma_Base_VCC' : ('vertices of group 6', 'facet'),
-	'Gamma_Base_GND' : ('vertices of group 7', 'facet'),
-	'Gamma_DF_VCC' : ('vertices of group 8', 'facet'),
-	'Gamma_DF_GND' : ('vertices of group 9', 'facet'),
+    'Fp1' : 'cells of group 10',
+    'Fp2' : 'cells of group 11',
+    'F7' : 'cells of group 12',
+    'F3' : 'cells of group 13',
+    'Fz' : 'cells of group 14',
+    'F4' : 'cells of group 15',
+    'F8' : 'cells of group 16',
+    'T7' : 'cells of group 17',
+    'C3' : 'cells of group 18',
+    'Cz' : 'cells of group 19',
+    'C4' : 'cells of group 20',
+    'T8' : 'cells of group 21',
+    'P7' : 'cells of group 22',
+    'P3' : 'cells of group 23',
+    'Pz' : 'cells of group 24',
+    'P4' : 'cells of group 25',
+    'P8' : 'cells of group 26',
+    'O1' : 'cells of group 27',
+    'O2' : 'cells of group 28',
+    'Gamma_Base_VCC' : ('vertices of group 25', 'facet'),
+	'Gamma_Base_GND' : ('vertices of group 12', 'facet'),
+	'Gamma_DF_VCC' : ('vertices of group 23', 'facet'),
+	'Gamma_DF_GND' : ('vertices of group 16', 'facet'),
 }
-'''
-	'Gamma_Base_VCC' : ('vertices of group 4', 'facet'),
-	'Gamma_Base_GND' : ('vertices of group 5', 'facet'),
-	'Gamma_DF_VCC' : ('vertices of group 6', 'facet'),
-	'Gamma_DF_GND' : ('vertices of group 7', 'facet'),
-'''
 ## Regions
 
 ## Fields
@@ -182,13 +206,12 @@ functions = {
 ## Solvers
 solvers = {
 	'ls' : ('ls.pyamg', {
-		'i_max': 500,
+		'i_max': 100,
 		'eps_r': 1e-12,
 	}),
 	'newton' : ('nls.newton', {
 		'i_max'      : 1,
 		'eps_a'      : 1e-4,
-		'eps_r'      : 1.0,
 		'macheps'	 : 1e-10,
 	}),
 }
