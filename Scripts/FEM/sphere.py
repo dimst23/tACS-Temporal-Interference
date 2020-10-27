@@ -11,7 +11,7 @@ import numpy as np
 with open('/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor Thesis/Public Repository/tacs-temporal-interference/Scripts/FEM/sim_settings.yml') as stream:
 	settings = yaml.safe_load(stream)
 
-sys.path.append(settings['SfePy']['sphere']['lib_path'])
+sys.path.append(settings['SfePy']['lib_path'])
 import Meshing.modulation_envelope as mod_env
 
 filename_mesh = settings['SfePy']['sphere']['mesh_file']

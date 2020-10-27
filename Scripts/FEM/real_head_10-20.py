@@ -10,7 +10,7 @@ import numpy as np
 with open('/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor Thesis/Public Repository/tacs-temporal-interference/Scripts/FEM/sim_settings.yml') as stream:
 	settings = yaml.safe_load(stream)
 
-sys.path.append(settings['SfePy']['real_brain']['lib_path'])
+sys.path.append(settings['SfePy']['lib_path'])
 import Meshing.modulation_envelope as mod_env
 
 filename_mesh = settings['SfePy']['real_brain']['mesh_file']
