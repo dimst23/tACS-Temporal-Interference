@@ -8,12 +8,10 @@ Simulations of the temporally interfering electric field distribution are conduc
 
 ## Further Information
 
-In this repository there is a Wiki in which you can find detailed information about the code and the approaches taken to solve the problems.
+In this repository there [is a Wiki](https://gitlab.com/dimst23/tacs-temporal-interference/-/wikis/0.-Home) in which you can find detailed information about the code and the approaches taken to solve the problems.
 
 ## Structure of the Repository
 
-* [assets/](/assets)
-  * [images/](/assets/images)
 * [CAD/](/CAD)
   * [SAM/](/CAD/SAM)
   * [Sphere/](/CAD/Sphere)
