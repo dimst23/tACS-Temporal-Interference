@@ -32,10 +32,10 @@ def phm_model_meshing(base_path: str, suffix_name: str, electrode_attributes: di
 	print("Boundary - Electrode Separation") # INFO log
 	sub_outer[0] = pymesh.merge_meshes((sub_outer[0], skull_stl, csf_stl, wm_stl, gm_stl, ventricles_stl, cerebellum_stl))
 
-	if pymesh.detect_self_intersection(sub_outer[0]):
+	if pymesh.detect_self_intersection(sub_outer[0]).size:
 		print("Self-intersections detected") # WARNING log
 		sub_outer[0] = pymesh.resolve_self_intersection(sub_outer[0])
-	
+
 	part_model = pymesh.tetrahedralize(sub_outer[0], max_radius)
 
 	sp_tet = pymesh.tetrahedralize(sub_outer[1], max_radius)

@@ -9,6 +9,9 @@ folders = next(os.walk(base_path))[1]
 
 if __name__ == '__main__':
 	for folder in folders:
+		print("############")
+		print("Model " + folder)
+		print("############\n")
 		standard_electrodes = sio.loadmat(os.path.join(base_path, folder, '10-20_elec_' + folder + '.mat'))
 		elec_attributes = {
 			'names': [name[0][0] for name in standard_electrodes['ElectrodeNames']],
