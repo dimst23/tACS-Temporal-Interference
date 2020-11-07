@@ -7,13 +7,39 @@ import yaml
 from sfepy import data_dir
 import numpy as np
 
+from argparse import ArgumentParser, RawDescriptionHelpFormatter
+
+"""
+#### Argument parsing
+helps = {
+	'settings-file' : "File having the settings to be loaded",
+	'model' : "Name of the model. Selection from the settings file",
+}
+
+parser = ArgumentParser(description=__doc__,
+						formatter_class=RawDescriptionHelpFormatter)
+parser.add_argument('--version', action='version', version='%(prog)s')
+parser.add_argument('--settings-file', metavar='str', type=str,
+					action='store', dest='settings_file',
+					default=None, help=helps['settings-file'])
+parser.add_argument('--model', metavar='str', type=str,
+					action='store', dest='model',
+					default='brain', help=helps['model'])
+options = parser.parse_args()
+#### Argument parsing
+"""
+
+#with open(options.settings_file) as stream:
+#	settings = yaml.safe_load(stream)
+model = 'real_brain'
 with open('/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor Thesis/Public Repository/tacs-temporal-interference/Scripts/FEM/sim_settings.yml') as stream:
 	settings = yaml.safe_load(stream)
 
 sys.path.append(settings['SfePy']['lib_path'])
 import Meshing.modulation_envelope as mod_env
 
-filename_mesh = settings['SfePy']['real_brain']['mesh_file']
+filename_mesh = settings['SfePy'][model]['mesh_fie']
+iters = 0
 
 def get_conductivity(ts, coors, mode=None, equations=None, term=None, problem=None, conductivities=None):
 	"""[summary]
@@ -32,8 +58,6 @@ def get_conductivity(ts, coors, mode=None, equations=None, term=None, problem=No
 	"""
 	# Execute only once at the initialization
 	if mode == 'qp':
-		print(coors)
-		print(coors.shape)
 		values = np.empty(int(coors.shape[0]/4)) # Each element corresponds to one coordinate of the respective tetrahedral edge
 
 		# Save the conductivity values
@@ -46,6 +70,21 @@ def get_conductivity(ts, coors, mode=None, equations=None, term=None, problem=No
 		
 		return {'val' : values}
 
+def optimization(problem):
+	global iters
+	print("Optimization")
+	print(problem)
+	print("Iterations")
+	print(iters)
+	out = []
+	iters = iters + 1
+	print(iters)
+	#yield problem, out
+
+	if iters < 3:
+		yield problem, out
+	yield None
+
 ############# Laplace.
 
 ## Materials
@@ -55,26 +94,26 @@ conductivity_values = {
 	'CSF': 1.776,
 	'GM': 0.2391,
 	'WM': 0.2651,
-    'Cerebellum': 0.6597,
-    'Fp1': 5.96e7, # Copper
-    'Fp2': 5.96e7,
-    'F7': 5.96e7,
-    'F3': 5.96e7,
-    'Fz': 5.96e7,
-    'F4': 5.96e7,
-    'F8': 5.96e7,
-    'T7': 5.96e7,
-    'C3': 5.96e7,
-    'Cz': 5.96e7,
-    'C4': 5.96e7,
-    'T8': 5.96e7,
-    'P7': 5.96e7,
-    'P3': 5.96e7,
-    'Pz': 5.96e7,
-    'P4': 5.96e7,
-    'P8': 5.96e7,
-    'O1': 5.96e7,
-    'O2': 5.96e7,
+	'Cerebellum': 0.6597,
+	'Fp1': 5.96e7, # Copper
+	'Fp2': 5.96e7,
+	'F7': 5.96e7,
+	'F3': 5.96e7,
+	'Fz': 5.96e7,
+	'F4': 5.96e7,
+	'F8': 5.96e7,
+	'T7': 5.96e7,
+	'C3': 5.96e7,
+	'Cz': 5.96e7,
+	'C4': 5.96e7,
+	'T8': 5.96e7,
+	'P7': 5.96e7,
+	'P3': 5.96e7,
+	'Pz': 5.96e7,
+	'P4': 5.96e7,
+	'P8': 5.96e7,
+	'O1': 5.96e7,
+	'O2': 5.96e7,
 }
 
 materials = {
@@ -91,26 +130,26 @@ regions = {
 	'GM' : 'cells of group 3',
 	'WM' : 'cells of group 4',
 	'Cerebellum' : 'cells of group 5',
-    'Fp1' : 'cells of group 10',
-    'Fp2' : 'cells of group 11',
-    'F7' : 'cells of group 12',
-    'F3' : 'cells of group 13',
-    'Fz' : 'cells of group 14',
-    'F4' : 'cells of group 15',
-    'F8' : 'cells of group 16',
-    'T7' : 'cells of group 17',
-    'C3' : 'cells of group 18',
-    'Cz' : 'cells of group 19',
-    'C4' : 'cells of group 20',
-    'T8' : 'cells of group 21',
-    'P7' : 'cells of group 22',
-    'P3' : 'cells of group 23',
-    'Pz' : 'cells of group 24',
-    'P4' : 'cells of group 25',
-    'P8' : 'cells of group 26',
-    'O1' : 'cells of group 27',
-    'O2' : 'cells of group 28',
-    'Gamma_Base_VCC' : ('vertices of group 25', 'facet'),
+	'Fp1' : 'cells of group 10',
+	'Fp2' : 'cells of group 11',
+	'F7' : 'cells of group 12',
+	'F3' : 'cells of group 13',
+	'Fz' : 'cells of group 14',
+	'F4' : 'cells of group 15',
+	'F8' : 'cells of group 16',
+	'T7' : 'cells of group 17',
+	'C3' : 'cells of group 18',
+	'Cz' : 'cells of group 19',
+	'C4' : 'cells of group 20',
+	'T8' : 'cells of group 21',
+	'P7' : 'cells of group 22',
+	'P3' : 'cells of group 23',
+	'Pz' : 'cells of group 24',
+	'P4' : 'cells of group 25',
+	'P8' : 'cells of group 26',
+	'O1' : 'cells of group 27',
+	'O2' : 'cells of group 28',
+	'Gamma_Base_VCC' : ('vertices of group 25', 'facet'),
 	'Gamma_Base_GND' : ('vertices of group 12', 'facet'),
 	'Gamma_DF_VCC' : ('vertices of group 23', 'facet'),
 	'Gamma_DF_GND' : ('vertices of group 16', 'facet'),
@@ -208,9 +247,8 @@ functions = {
 ## Solvers
 solvers = {
 	'ls' : ('ls.pyamg', {
-		'i_max': 100,
+		'i_max': 1,
 		'eps_r': 1e-12,
-		'method': 'ruge_stuben_solver',
 	}),
 	'newton' : ('nls.newton', {
 		'i_max'      : 1,
@@ -221,9 +259,11 @@ solvers = {
 ## Solvers
 
 options ={
-	'output_dir': settings['SfePy']['real_brain']['output_dir'],
+	'output_dir': settings['SfePy'][model]['output_dir'],
 	'post_process_hook': 'post_process',
+	'parametric_hook': 'optimization',
 }
+
 
 def post_process(out, problem, state, extend=False):
 	from sfepy.base.base import Struct

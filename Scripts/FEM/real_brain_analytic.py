@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from __future__ import absolute_import
+import os
 import sys
 import yaml
 
@@ -24,10 +25,10 @@ parser.add_argument('--model', metavar='str', type=str,
 options = parser.parse_args()
 #### Argument parsing
 
-with open(options.settings_file) as stream:
+with open(os.path.realpath(options.settings_file)) as stream:
 	settings = yaml.safe_load(stream)
 
-sys.path.append(settings['SfePy']['lib_path'])
+sys.path.append(os.path.realpath(settings['SfePy']['lib_path_windows']))
 import Meshing.modulation_envelope as mod_env
 
 import numpy as np
@@ -59,8 +60,6 @@ def get_conductivity(ts, coors, mode=None, equations=None, term=None, problem=No
 	"""
 	# Execute only once at the initialization
 	if mode == 'qp':
-		print(coors)
-		print(coors.shape)
 		values = np.empty(int(coors.shape[0]/4)) # Each element corresponds to one coordinate of the respective tetrahedral edge
 
 		# Save the conductivity values
@@ -73,8 +72,39 @@ def get_conductivity(ts, coors, mode=None, equations=None, term=None, problem=No
 		
 		return {'val' : values}
 
+def post_process(out, problem, state, extend=False):
+	from sfepy.base.base import Struct
 
-mesh = Mesh.from_file(settings['SfePy'][options.model]['mesh_file'])
+	e_field_base = problem.evaluate('-ev_grad.2.Omega(potential_base)', mode='qp')
+	e_field_df = problem.evaluate('-ev_grad.2.Omega(potential_df)', mode='qp')
+
+	# Calculate the maximum modulation envelope
+	modulation_cells = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0])
+	modulation_cells = np.repeat(modulation_cells, 4, axis=0).reshape((e_field_base.shape[0], 4, 1, 1))
+	modulation_points = modulation_cells.flatten()[np.unique(problem.domain.mesh.get_conn('3_4').flatten(), return_index=True)[1]]
+
+	# Calculate the directional modulation envelope
+	modulation_x = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0], dir_vector=[1, 0, 0])
+	modulation_y = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0], dir_vector=[0, 1, 0])
+	modulation_z = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0], dir_vector=[0, 0, 1])
+
+	modulation_x = np.repeat(modulation_x, 4, axis=0).reshape((e_field_base.shape[0], 4, 1, 1))
+	modulation_y = np.repeat(modulation_y, 4, axis=0).reshape((e_field_base.shape[0], 4, 1, 1))
+	modulation_z = np.repeat(modulation_z, 4, axis=0).reshape((e_field_base.shape[0], 4, 1, 1))
+
+	# Save the output
+	out['e_field_base'] = Struct(name='e_field_base', mode='cell', data=e_field_base, dofs=None)
+	out['e_field_df'] = Struct(name='e_field_df', mode='cell', data=e_field_df, dofs=None)
+	out['max_modulation'] = Struct(name='max_modulation', mode='cell', data=modulation_cells, dofs=None)
+	out['max_modulation_pts'] = Struct(name='max_modulation_pts', mode='vertex', data=modulation_points, dofs=None)
+	out['modulation_x'] = Struct(name='modulation_x', mode='cell', data=modulation_x, dofs=None)
+	out['modulation_y'] = Struct(name='modulation_y', mode='cell', data=modulation_y, dofs=None)
+	out['modulation_z'] = Struct(name='modulation_z', mode='cell', data=modulation_z, dofs=None)
+
+	return out
+
+
+mesh = Mesh.from_file(os.path.realpath(settings['SfePy'][options.model]['mesh_file_windows']))
 domain = FEDomain('domain', mesh)
 
 conductivities = {} # Empty conductivity dictionaries
@@ -88,14 +118,8 @@ for region in settings['SfePy']['regions'].items():
 
 for electrode in settings['SfePy']['electrodes'].items():
 	if electrode[0] != 'conductivity':
-		domain.create_region(electrode[0], 'cells of group ' + str(region[1]['id']))
-	else:
-		conductivities[electrode[0]] = electrode[1]['conductivity']
-
-r_base_vcc = domain.create_region('Base_VCC', 'vertices of group 25', 'facet')
-r_base_gnd = domain.create_region('Base_GND', 'vertices of group 12', 'facet')
-r_df_vcc = domain.create_region('DF_VCC', 'vertices of group 23', 'facet')
-r_df_gnd = domain.create_region('DF_GND', 'vertices of group 16', 'facet')
+		domain.create_region(electrode[0], 'cells of group ' + str(electrode[1]['id']))
+		conductivities[electrode[0]] = settings['SfePy']['electrodes']['conductivity']
 #### Region definition
 
 #### Material definition
@@ -103,12 +127,19 @@ conductivity = Material('conductivity', function=Function('get_conductivity', la
 #conductivity = Material('conductivities', function=Function(domain, settings['SfePy'][options.model]['conductivities']))
 #### Material definition
 
-#### Essential boundary conditions
-bc_base_vcc = EssentialBC('base_vcc', r_base_vcc, {'potential_base.all' : 150.0})
-bc_base_gnd = EssentialBC('base_gnd', r_base_gnd, {'potential_base.all' : -150.0})
+#### Boundary (electrode) areas
+r_base_vcc = domain.create_region('Base_VCC', 'vertices of group 25', 'facet')
+r_base_gnd = domain.create_region('Base_GND', 'vertices of group 12', 'facet')
+r_df_vcc = domain.create_region('DF_VCC', 'vertices of group 23', 'facet')
+r_df_gnd = domain.create_region('DF_GND', 'vertices of group 16', 'facet')
+#### Boundary (electrode) areas
 
-bc_df_vcc = EssentialBC('df_vcc', r_df_vcc, {'potential_df.all' : 150.0})
-bc_df_gnd = EssentialBC('df_gnd', r_df_gnd, {'potential_df.all' : -150.0})
+#### Essential boundary conditions
+bc_base_vcc = EssentialBC('base_vcc', r_base_vcc, {'potential_base.0' : 150.0})
+bc_base_gnd = EssentialBC('base_gnd', r_base_gnd, {'potential_base.0' : -150.0})
+
+bc_df_vcc = EssentialBC('df_vcc', r_df_vcc, {'potential_df.0' : 150.0})
+bc_df_gnd = EssentialBC('df_gnd', r_df_gnd, {'potential_df.0' : -150.0})
 #### Essential boundary conditions
 
 #### Field definition
@@ -136,14 +167,15 @@ equations = Equations([eq_base, eq_df])
 #### Solver definition
 ls = PyAMGSolver({
 	'i_max': 100,
-	  'eps_r': 1e-12
+	'eps_r': 1e-12,
+	'method': 'ruge_stuben_solver',
 })
 
 nls_status = IndexedStruct()
 nls = Newton({
-	'i_max'      : 1,
-	'eps_a'      : 1e-4,
-	'macheps'	 : 1e-10
+	'i_max': 1,
+	'eps_a': 1e-4,
+	'macheps': 1e-10
 }, lin_solver=ls, status=nls_status)
 #### Solver definition
 
@@ -152,5 +184,10 @@ problem.set_bcs(ebcs=Conditions([bc_base_vcc, bc_base_gnd, bc_df_vcc, bc_df_gnd]
 problem.set_solver(nls)
 
 # Solve the problem
-state = problem.solve()
+state = problem.solve(post_process_hook=post_process)
+#state = problem.solve()
 output(nls_status)
+
+output_data = state.create_output_dict()
+
+problem.save_state('file.vtk', out=output_data)
