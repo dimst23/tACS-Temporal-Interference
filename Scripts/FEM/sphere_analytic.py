@@ -42,9 +42,6 @@ from sfepy.terms import Term
 from sfepy.discrete.conditions import Conditions, EssentialBC
 from sfepy.solvers.ls import ScipyUmfpack, PyAMGSolver, ScipySuperLU, PETScKrylovSolver
 from sfepy.solvers.nls import Newton, ScipyBroyden, PETScNonlinearSolver
-
-import sfepy.parallel.parallel as prl
-from sfepy.parallel.evaluate import PETScParallelEvaluator
 #### SfePy libraries
 
 def get_conductivity(ts, coors, mode=None, equations=None, term=None, problem=None, conductivities=None):
@@ -117,14 +114,14 @@ conductivities = {} # Empty conductivity dictionaries
 #### Region definition
 overall_volume = domain.create_region('Omega', 'all')
 
-for region in settings['SfePy'][options.model]['regions'].items():
+for region in settings['SfePy']['sphere']['regions'].items():
 	domain.create_region(region[0], 'cells of group ' + str(region[1]['id']))
 	conductivities[region[0]] = region[1]['conductivity']
 
-for electrode in settings['SfePy'][options.model]['electrodes'].items():
+for electrode in settings['SfePy']['sphere']['electrodes'].items():
 	if electrode[0] != 'conductivity':
 		domain.create_region(electrode[0], 'cells of group ' + str(electrode[1]['id']))
-		conductivities[electrode[0]] = settings['SfePy'][options.model]['electrodes']['conductivity']
+		conductivities[electrode[0]] = settings['SfePy']['sphere']['electrodes']['conductivity']
 #### Region definition
 
 #### Material definition
@@ -133,10 +130,10 @@ conductivity = Material('conductivity', function=Function('get_conductivity', la
 #### Material definition
 
 #### Boundary (electrode) areas
-r_base_vcc = domain.create_region('Base_VCC', 'vertices of group 25', 'facet')
-r_base_gnd = domain.create_region('Base_GND', 'vertices of group 12', 'facet')
-r_df_vcc = domain.create_region('DF_VCC', 'vertices of group 23', 'facet')
-r_df_gnd = domain.create_region('DF_GND', 'vertices of group 16', 'facet')
+r_base_vcc = domain.create_region('Base_VCC', 'vertices of group 4', 'facet')
+r_base_gnd = domain.create_region('Base_GND', 'vertices of group 5', 'facet')
+r_df_vcc = domain.create_region('DF_VCC', 'vertices of group 6', 'facet')
+r_df_gnd = domain.create_region('DF_GND', 'vertices of group 7', 'facet')
 #### Boundary (electrode) areas
 
 #### Essential boundary conditions
@@ -179,7 +176,7 @@ ls = PyAMGSolver({
 }, status=ls_status)
 """
 ls = PETScKrylovSolver({
-	'i_max': 100,
+	'i_max': 1000,
 	'eps_r': 1e-12,
 }, status=ls_status)
 #ls = ScipySuperLU({}, status=ls_status)

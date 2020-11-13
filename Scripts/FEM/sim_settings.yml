@@ -1,73 +1,96 @@
 SfePy:
   lib_path: '/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor Thesis/Public Repository/tacs-temporal-interference/Scripts/'
   lib_path_windows: 'C:\Users\Dimitris\Nextcloud\Documents\Neuroscience Bachelor Thesis\Public Repository\tacs-temporal-interference\Scripts'
-  regions:
-    Skin:
-      id: 0
-      conductivity: 0.17
-    Skull:
-      id: 1
-      conductivity: 0.003504
-    CSF:
-      id: 2
-      conductivity: 1.776
-    GM:
-      id: 3
-      conductivity: 0.2391
-    WM:
-      id: 4
-      conductivity: 0.2651
-    Cerebellum:
-      id: 5
-      conductivity: 0.6597
-  electrodes:
-    conductivity: 59600000.0
-    Fp1:
-      id: 10
-    Fp2:
-      id: 11
-    F7:
-      id: 12
-    F3:
-      id: 13
-    Fz:
-      id: 14
-    F4:
-      id: 15
-    F8:
-      id: 16
-    T7:
-      id: 17
-    C3:
-      id: 18
-    Cz:
-      id: 19
-    C4:
-      id: 20
-    T8:
-      id: 21
-    P7:
-      id: 22
-    P3:
-      id: 23
-    Pz:
-      id: 24
-    P4:
-      id: 25
-    P8:
-      id: 26
-    O1:
-      id: 27
-    O2:
-      id: 28
   real_brain:
     mesh_file: '/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor Thesis/Public Repository/tacs-temporal-interference/Scripts/mesh_126325_10-20.vtk'
     output_dir: '/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor Thesis/Public Repository/tacs-temporal-interference/Scripts/FEM'
     mesh_file_windows: 'C:\Users\Dimitris\Nextcloud\Documents\Neuroscience Bachelor Thesis\Public Repository\tacs-temporal-interference\Scripts\mesh_126325_10-20.vtk'
     output_dir_windows: 'C:\Users\Dimitris\Nextcloud\Documents\Neuroscience Bachelor Thesis\Public Repository\tacs-temporal-interference\Scripts\FEM'
+    regions:
+      Skin:
+        id: 0
+        conductivity: 0.17
+      Skull:
+        id: 1
+        conductivity: 0.003504
+      CSF:
+        id: 2
+        conductivity: 1.776
+      GM:
+        id: 3
+        conductivity: 0.2391
+      WM:
+        id: 4
+        conductivity: 0.2651
+      Cerebellum:
+        id: 5
+        conductivity: 0.6597
+    electrodes:
+      conductivity: 59600000.0
+      Fp1:
+        id: 10
+      Fp2:
+        id: 11
+      F7:
+        id: 12
+      F3:
+        id: 13
+      Fz:
+        id: 14
+      F4:
+        id: 15
+      F8:
+        id: 16
+      T7:
+        id: 17
+      C3:
+        id: 18
+      Cz:
+        id: 19
+      C4:
+        id: 20
+      T8:
+        id: 21
+      P7:
+        id: 22
+      P3:
+        id: 23
+      Pz:
+        id: 24
+      P4:
+        id: 25
+      P8:
+        id: 26
+      O1:
+        id: 27
+      O2:
+        id: 28
   real_brain_one:
     mesh_file: '/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor Thesis/Public Repository/tacs-temporal-interference/Scripts/msh_real_one.vtk'
     output_dir: '/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor Thesis/Public Repository/tacs-temporal-interference/Scripts/FEM'
   sphere:
     mesh_file: '/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor Thesis/Public Repository/tacs-temporal-interference/Scripts/msh.vtk'
     output_dir: '/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor Thesis/Public Repository/tacs-temporal-interference/Scripts/FEM'
+    regions:
+      Skin: 
+        id: 0
+        conductivity: 0.17
+      Skull: 
+        id: 1
+        conductivity: 0.003504
+      CSF: 
+        id: 2
+        conductivity: 1.776
+      Brain: 
+        id: 3
+        conductivity: 0.234
+    electrodes:
+      conductivity: 59600000.0
+      B_VCC: 
+        id: 4
+      B_GND: 
+        id: 5
+      D_VCC: 
+        id: 6
+      D_GND: 
+        id: 7
