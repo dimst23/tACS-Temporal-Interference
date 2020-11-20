@@ -33,6 +33,8 @@ sys.path.append(os.path.realpath(settings['SfePy']['lib_path']))
 import Meshing.modulation_envelope as mod_env
 
 import numpy as np
+from scipy.optimize import differential_evolution, NonlinearConstraint, Bounds
+
 
 #### SfePy libraries
 from sfepy.base.base import output, IndexedStruct
@@ -42,6 +44,9 @@ from sfepy.terms import Term
 from sfepy.discrete.conditions import Conditions, EssentialBC
 from sfepy.solvers.ls import ScipyUmfpack, PyAMGSolver, ScipySuperLU, PETScKrylovSolver
 from sfepy.solvers.nls import Newton, ScipyBroyden, PETScNonlinearSolver
+
+import sfepy.parallel.parallel as prl
+from sfepy.parallel.evaluate import PETScParallelEvaluator
 #### SfePy libraries
 
 def get_conductivity(ts, coors, mode=None, equations=None, term=None, problem=None, conductivities=None):
@@ -114,14 +119,14 @@ conductivities = {} # Empty conductivity dictionaries
 #### Region definition
 overall_volume = domain.create_region('Omega', 'all')
 
-for region in settings['SfePy']['sphere']['regions'].items():
+for region in settings['SfePy'][options.model]['regions'].items():
 	domain.create_region(region[0], 'cells of group ' + str(region[1]['id']))
 	conductivities[region[0]] = region[1]['conductivity']
 
-for electrode in settings['SfePy']['sphere']['electrodes'].items():
+for electrode in settings['SfePy'][options.model]['electrodes'].items():
 	if electrode[0] != 'conductivity':
 		domain.create_region(electrode[0], 'cells of group ' + str(electrode[1]['id']))
-		conductivities[electrode[0]] = settings['SfePy']['sphere']['electrodes']['conductivity']
+		conductivities[electrode[0]] = settings['SfePy'][options.model]['electrodes']['conductivity']
 #### Region definition
 
 #### Material definition
@@ -129,85 +134,83 @@ conductivity = Material('conductivity', function=Function('get_conductivity', la
 #conductivity = Material('conductivities', function=Function(domain, settings['SfePy'][options.model]['conductivities']))
 #### Material definition
 
-#### Boundary (electrode) areas
-r_base_vcc = domain.create_region('Base_VCC', 'vertices of group 4', 'facet')
-r_base_gnd = domain.create_region('Base_GND', 'vertices of group 5', 'facet')
-r_df_vcc = domain.create_region('DF_VCC', 'vertices of group 6', 'facet')
-r_df_gnd = domain.create_region('DF_GND', 'vertices of group 7', 'facet')
-#### Boundary (electrode) areas
-
-#### Essential boundary conditions
-bc_base_vcc = EssentialBC('base_vcc', r_base_vcc, {'potential_base.0' : 150.0})
-bc_base_gnd = EssentialBC('base_gnd', r_base_gnd, {'potential_base.0' : -150.0})
-
-bc_df_vcc = EssentialBC('df_vcc', r_df_vcc, {'potential_df.0' : 150.0})
-bc_df_gnd = EssentialBC('df_gnd', r_df_gnd, {'potential_df.0' : -150.0})
-#### Essential boundary conditions
-
-#### Field definition
-field_potential = Field.from_args('voltage', dtype=np.float64, shape=(1, ), region=overall_volume, approx_order=1)
-
-fld_potential_base = FieldVariable('potential_base', 'unknown', field=field_potential)
-fld_s_base = FieldVariable('s_base', 'test', field=field_potential, primary_var_name='potential_base')
-
-fld_potential_df = FieldVariable('potential_df', 'unknown', field=field_potential)
-fld_s_df = FieldVariable('s_df', 'test', field=field_potential, primary_var_name='potential_df')
-#### Field definition
-
-#### Equation definition
-integral = Integral('i1', order=2)
-
-laplace_base = Term.new('dw_laplace(conductivity.val, s_base, potential_base)', integral, region=overall_volume, conductivity=conductivity, potential_base=fld_potential_base, s_base=fld_s_base)
-laplace_df = Term.new('dw_laplace(conductivity.val, s_df, potential_df)', integral, region=overall_volume, conductivity=conductivity, potential_df=fld_potential_df, s_df=fld_s_df)
-
-eq_base = Equation('balance', laplace_base)
-eq_df = Equation('balance', laplace_df)
-
-equations = Equations([eq_base, eq_df])
-#### Equation definition
-
 #### Solver definition
 
 ls_status = IndexedStruct()
-"""
-ls = PyAMGSolver({
-	'i_max': 10,
-	'eps_r': 1e-12,
-}, status=ls_status)
-"""
-ls = PyAMGSolver({
-	'i_max': 100,
-	'eps_r': 1e-12,
-	'accel': 'lsqr'
-}, status=ls_status)
-#ls = ScipySuperLU({}, status=ls_status)
-#ls = ScipyUmfpack({}, status=ls_status)
+ls = ScipyUmfpack({}, status=ls_status)
 
 nls_status = IndexedStruct()
-
 nls = Newton({
 	'i_max': 1,
 	'eps_a': 1e-4,
 }, lin_solver=ls, status=nls_status)
-"""
-nls = ScipyBroyden({
-	'method': 'broyden2',
-	'i_max': 100,
-	'w0': 0.01,
-}, lin_solver=ls, status=nls_status)
-"""
 #### Solver definition
 
-problem = Problem('temporal_interference', equations=equations)
-problem.set_bcs(ebcs=Conditions([bc_base_vcc, bc_base_gnd, bc_df_vcc, bc_df_gnd]))
-problem.set_solver(nls)
+r_base_vcc = domain.create_region('Base_VCC', 'vertices of group 25', 'facet')
+r_base_gnd = domain.create_region('Base_GND', 'vertices of group 12', 'facet')
+r_df_vcc = domain.create_region('DF_VCC', 'vertices of group 23', 'facet')
+r_df_gnd = domain.create_region('DF_GND', 'vertices of group 16', 'facet')
 
-# Solve the problem
-state = problem.solve(post_process_hook=post_process)
-#state = problem.solve()
-output(ls_status)
-output(nls_status)
 
-output_data = state.create_output_dict()
+## Optimization starts here
+def electrode_optimization(x, domain, conductivity, solver, post_process):
+    #### Make the electrodes integer
+    x[2] = round(x[2])
+    x[3] = round(x[3])
+    x[4] = round(x[4])
+    x[5] = round(x[5])
 
-problem.save_state('file.vtk', out=output_data)
+    #### Boundary (electrode) areas
+    r_base_vcc = domain.create_region('Base_VCC', 'vertices of group ' + x[2], 'facet', add_to_regions=False)
+    r_base_gnd = domain.create_region('Base_GND', 'vertices of group ' + x[3], 'facet', add_to_regions=False)
+    r_df_vcc = domain.create_region('DF_VCC', 'vertices of group ' + x[4], 'facet', add_to_regions=False)
+    r_df_gnd = domain.create_region('DF_GND', 'vertices of group ' + x[5], 'facet', add_to_regions=False)
+    #### Boundary (electrode) areas
+
+    #### Essential boundary conditions
+    bc_base_vcc = EssentialBC('base_vcc', r_base_vcc, {'potential_base.all' : x[0]})
+    bc_base_gnd = EssentialBC('base_gnd', r_base_gnd, {'potential_base.all' : -x[0]})
+
+    bc_df_vcc = EssentialBC('df_vcc', r_df_vcc, {'potential_df.all' : x[1]})
+    bc_df_gnd = EssentialBC('df_gnd', r_df_gnd, {'potential_df.all' : -x[1]})
+    #### Essential boundary conditions
+
+    #### Field definition
+    field_potential = Field.from_args('voltage', dtype=np.float64, shape=(1, ), region=overall_volume, approx_order=1)
+
+    fld_potential_base = FieldVariable('potential_base', 'unknown', field=field_potential)
+    fld_s_base = FieldVariable('s_base', 'test', field=field_potential, primary_var_name='potential_base')
+
+    fld_potential_df = FieldVariable('potential_df', 'unknown', field=field_potential)
+    fld_s_df = FieldVariable('s_df', 'test', field=field_potential, primary_var_name='potential_df')
+    #### Field definition
+
+    #### Equation definition
+    integral = Integral('i1', order=2)
+
+    laplace_base = Term.new('dw_laplace(conductivity.val, s_base, potential_base)', integral, region=overall_volume, conductivity=conductivity, potential_base=fld_potential_base, s_base=fld_s_base)
+    laplace_df = Term.new('dw_laplace(conductivity.val, s_df, potential_df)', integral, region=overall_volume, conductivity=conductivity, potential_df=fld_potential_df, s_df=fld_s_df)
+
+    eq_base = Equation('balance', laplace_base)
+    eq_df = Equation('balance', laplace_df)
+
+    equations = Equations([eq_base, eq_df])
+    #### Equation definition
+
+    problem = Problem('temporal_interference', equations=equations)
+    problem.set_bcs(ebcs=Conditions([bc_base_vcc, bc_base_gnd, bc_df_vcc, bc_df_gnd]))
+    problem.set_solver(solver)
+
+    # Solve the problem
+    state = problem.solve(post_process_hook=post_process)
+    #state = problem.solve()
+    #output(ls_status)
+    #output(nls_status)
+
+    #output_data = state.create_output_dict()
+
+    #problem.save_state('file.vtk', out=output_data)
+
+bounds = Bounds([0., 0., 10, 10, 10, 10], [500., 500., 28, 28, 28, 28])
+nlc = NonlinearConstraint(lambda x: np.unique(round(x[2:]), return_counts=True)[1].size, 4, 4) # Keep only unique combinations
+result = differential_evolution(electrode_optimization, bounds, args=(domain, conductivity, nls, post_process), constraints=(nlc), seed=1, maxiter=4)

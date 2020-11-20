@@ -21,18 +21,30 @@ parser.add_argument('--settings-file', metavar='str', type=str,
 					default=None, help=helps['settings-file'])
 parser.add_argument('--model', metavar='str', type=str,
 					action='store', dest='model',
-					default='brain', help=helps['model'])
+					default='sphere', help=helps['model'])
 options = parser.parse_args()
 #### Argument parsing
+
+## Debuging
+options.settings_file = r"C:\Users\Dimitris\Nextcloud\Documents\Neuroscience Bachelor Thesis\Public Repository\tacs-temporal-interference\Scripts\FEM\sim_settings.yml"
+options.model = 'sphere'
+## Debuging
 
 with open(os.path.realpath(options.settings_file)) as stream:
 	settings = yaml.safe_load(stream)
 
+if os.name == 'nt':
+	extra_path = '_windows'
+else:
+	extra_path = ''
+
 #sys.path.append(os.path.realpath(settings['SfePy']['lib_path_windows']))
-sys.path.append(os.path.realpath(settings['SfePy']['lib_path']))
+sys.path.append(os.path.realpath(settings['SfePy']['lib_path' + extra_path]))
 import Meshing.modulation_envelope as mod_env
 
 import numpy as np
+from scipy.optimize import differential_evolution, NonlinearConstraint, Bounds, minimize, least_squares, shgo
+
 
 #### SfePy libraries
 from sfepy.base.base import output, IndexedStruct
@@ -40,11 +52,12 @@ from sfepy.discrete import (FieldVariable, Material, Integral, Integrals, Equati
 from sfepy.discrete.fem import Mesh, FEDomain, Field
 from sfepy.terms import Term
 from sfepy.discrete.conditions import Conditions, EssentialBC
-from sfepy.solvers.ls import ScipyUmfpack, PyAMGSolver, ScipySuperLU, PETScKrylovSolver
-from sfepy.solvers.nls import Newton, ScipyBroyden, PETScNonlinearSolver
+from sfepy.solvers.ls import ScipyUmfpack, PyAMGSolver, ScipySuperLU
+#from sfepy.solvers.ls import ScipyUmfpack, PyAMGSolver, ScipySuperLU, PETScKrylovSolver
+from sfepy.solvers.nls import Newton, ScipyBroyden
 
-import sfepy.parallel.parallel as prl
-from sfepy.parallel.evaluate import PETScParallelEvaluator
+# import sfepy.parallel.parallel as prl
+# from sfepy.parallel.evaluate import PETScParallelEvaluator
 #### SfePy libraries
 
 def get_conductivity(ts, coors, mode=None, equations=None, term=None, problem=None, conductivities=None):
@@ -109,7 +122,7 @@ def post_process(out, problem, state, extend=False):
 
 
 #mesh = Mesh.from_file(os.path.realpath(settings['SfePy'][options.model]['mesh_file_windows']))
-mesh = Mesh.from_file(os.path.realpath(settings['SfePy'][options.model]['mesh_file']))
+mesh = Mesh.from_file(os.path.realpath(settings['SfePy'][options.model]['mesh_file' + extra_path]))
 domain = FEDomain('domain', mesh)
 
 conductivities = {} # Empty conductivity dictionaries
@@ -132,85 +145,130 @@ conductivity = Material('conductivity', function=Function('get_conductivity', la
 #conductivity = Material('conductivities', function=Function(domain, settings['SfePy'][options.model]['conductivities']))
 #### Material definition
 
-#### Boundary (electrode) areas
-r_base_vcc = domain.create_region('Base_VCC', 'vertices of group 25', 'facet')
-r_base_gnd = domain.create_region('Base_GND', 'vertices of group 12', 'facet')
-r_df_vcc = domain.create_region('DF_VCC', 'vertices of group 23', 'facet')
-r_df_gnd = domain.create_region('DF_GND', 'vertices of group 16', 'facet')
-#### Boundary (electrode) areas
-
-#### Essential boundary conditions
-bc_base_vcc = EssentialBC('base_vcc', r_base_vcc, {'potential_base.all' : 150.0})
-bc_base_gnd = EssentialBC('base_gnd', r_base_gnd, {'potential_base.all' : -150.0})
-
-bc_df_vcc = EssentialBC('df_vcc', r_df_vcc, {'potential_df.all' : 150.0})
-bc_df_gnd = EssentialBC('df_gnd', r_df_gnd, {'potential_df.all' : -150.0})
-#### Essential boundary conditions
-
-#### Field definition
-field_potential = Field.from_args('voltage', dtype=np.float64, shape=(1, ), region=overall_volume, approx_order=1)
-
-fld_potential_base = FieldVariable('potential_base', 'unknown', field=field_potential)
-fld_s_base = FieldVariable('s_base', 'test', field=field_potential, primary_var_name='potential_base')
-
-fld_potential_df = FieldVariable('potential_df', 'unknown', field=field_potential)
-fld_s_df = FieldVariable('s_df', 'test', field=field_potential, primary_var_name='potential_df')
-#### Field definition
-
-#### Equation definition
-integral = Integral('i1', order=2)
-
-laplace_base = Term.new('dw_laplace(conductivity.val, s_base, potential_base)', integral, region=overall_volume, conductivity=conductivity, potential_base=fld_potential_base, s_base=fld_s_base)
-laplace_df = Term.new('dw_laplace(conductivity.val, s_df, potential_df)', integral, region=overall_volume, conductivity=conductivity, potential_df=fld_potential_df, s_df=fld_s_df)
-
-eq_base = Equation('balance', laplace_base)
-eq_df = Equation('balance', laplace_df)
-
-equations = Equations([eq_base, eq_df])
-#### Equation definition
-
 #### Solver definition
 
 ls_status = IndexedStruct()
-"""
-ls = PyAMGSolver({
-	'i_max': 10,
-	'eps_r': 1e-12,
-}, status=ls_status)
-"""
+
 ls = PyAMGSolver({
 	'i_max': 100,
 	'eps_r': 1e-12,
-	'accel': 'minres'
 }, status=ls_status)
-#ls = ScipySuperLU({}, status=ls_status)
+
 #ls = ScipyUmfpack({}, status=ls_status)
 
 nls_status = IndexedStruct()
-
 nls = Newton({
 	'i_max': 1,
 	'eps_a': 1e-4,
 }, lin_solver=ls, status=nls_status)
-"""
-nls = ScipyBroyden({
-	'method': 'broyden2',
-	'i_max': 100,
-	'w0': 0.01,
-}, lin_solver=ls, status=nls_status)
-"""
 #### Solver definition
 
-problem = Problem('temporal_interference', equations=equations)
-problem.set_bcs(ebcs=Conditions([bc_base_vcc, bc_base_gnd, bc_df_vcc, bc_df_gnd]))
-problem.set_solver(nls)
+r_base_vcc = domain.create_region('Base_VCC', 'vertices of group 4', 'facet')
+r_base_gnd = domain.create_region('Base_GND', 'vertices of group 5', 'facet')
+r_df_vcc = domain.create_region('DF_VCC', 'vertices of group 6', 'facet')
+r_df_gnd = domain.create_region('DF_GND', 'vertices of group 7', 'facet')
 
-# Solve the problem
-state = problem.solve(post_process_hook=post_process)
-#state = problem.solve()
-output(ls_status)
-output(nls_status)
+def ackley(x):
+	arg1 = -0.2 * np.sqrt(0.5 * (x[0] ** 2 + x[1] ** 2))
+	arg2 = 0.5 * (np.cos(2. * np.pi * x[0]) + np.cos(2. * np.pi * x[1]))
+	return -20. * np.exp(arg1) - np.exp(arg2) + 20. + np.e
 
-output_data = state.create_output_dict()
+## Optimization starts here
+def electrode_optimization(x, *data):
+	domain, conductivity, solver, post_process_evolution = data
+	x = np.round(x, 4)
+	#### Essential boundary conditions
+	bc_base_vcc = EssentialBC('base_vcc', r_base_vcc, {'potential_base.all' : 150.0})
+	bc_base_gnd = EssentialBC('base_gnd', r_base_gnd, {'potential_base.all' : -150.0})
 
-problem.save_state('file.vtk', out=output_data)
+	bc_df_vcc = EssentialBC('df_vcc', r_df_vcc, {'potential_df.all' : 150.0*x[0]})
+	bc_df_gnd = EssentialBC('df_gnd', r_df_gnd, {'potential_df.all' : -150.0*x[0]})
+	#### Essential boundary conditions
+
+	#### Field definition
+	field_potential = Field.from_args('voltage', dtype=np.float64, shape=(1, ), region=overall_volume, approx_order=1)
+
+	fld_potential_base = FieldVariable('potential_base', 'unknown', field=field_potential)
+	fld_s_base = FieldVariable('s_base', 'test', field=field_potential, primary_var_name='potential_base')
+
+	fld_potential_df = FieldVariable('potential_df', 'unknown', field=field_potential)
+	fld_s_df = FieldVariable('s_df', 'test', field=field_potential, primary_var_name='potential_df')
+	#### Field definition
+
+	#### Equation definition
+	integral = Integral('i1', order=2)
+
+	laplace_base = Term.new('dw_laplace(conductivity.val, s_base, potential_base)', integral, region=overall_volume, conductivity=conductivity, potential_base=fld_potential_base, s_base=fld_s_base)
+	laplace_df = Term.new('dw_laplace(conductivity.val, s_df, potential_df)', integral, region=overall_volume, conductivity=conductivity, potential_df=fld_potential_df, s_df=fld_s_df)
+
+	eq_base = Equation('balance', laplace_base)
+	eq_df = Equation('balance', laplace_df)
+
+	equations = Equations([eq_base, eq_df])
+	#### Equation definition
+
+	problem = Problem('temporal_interference', equations=equations)
+	problem.set_bcs(ebcs=Conditions([bc_base_vcc, bc_base_gnd, bc_df_vcc, bc_df_gnd]))
+	problem.set_solver(solver)
+
+	# Solve the problem
+	state = problem.solve(post_process_hook=post_process)
+	#state = problem.solve()
+	#output(ls_status)
+	#output(nls_status)
+	#problem.evaluate()
+
+	#output_data = state.create_output_dict()
+	e_field_base = problem.evaluate('-ev_grad.2.Omega(potential_base)', mode='qp')
+	e_field_df = problem.evaluate('-ev_grad.2.Omega(potential_df)', mode='qp')
+
+	modulation_cells = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0])
+	modulation_cells = np.round(modulation_cells, 6)
+	del state
+	del e_field_base
+	del e_field_df
+
+	#problem.save_state('file.vtk', out=output_data)
+	# mod_val = round(modulation_cells[278668], 5)
+	print("Variables")
+	print(x[0])
+
+	crds = problem.domain.mesh.coors
+
+	bounding_roi = {
+		'x_min': 47.0,
+		'x_max': 59.0,
+		'y_min': 10.0,
+		'y_max': 27.0,
+		'z_min': -14.0,
+		'z_max': -3.0
+	}
+
+	vert_x = np.logical_and(crds[:, 0] >= bounding_roi['x_min'], crds[:, 0] <= bounding_roi['x_max'])
+	vert_y = np.logical_and(crds[:, 1] >= bounding_roi['y_min'], crds[:, 1] <= bounding_roi['y_max'])
+	vert_z = np.logical_and(crds[:, 2] >= bounding_roi['z_min'], crds[:, 2] <= bounding_roi['z_max'])
+	
+	# Get the ROI vertex indices
+	vert_id_roi = np.arange(crds.shape[0])
+	roi_ids = (vert_x * vert_y * vert_z > 0)
+	# roi_ids = (vert_x * vert_y > 0)
+
+	common_points = np.isin(problem.domain.mesh.get_conn('3_4'), vert_id_roi[roi_ids])
+	common_points = np.where(np.sum(common_points, axis=1) == 4)[0]
+	
+	mod_val = round(np.average(modulation_cells[common_points]), 6)
+
+	print(mod_val)
+	print(np.amax(modulation_cells[common_points]))
+	return [-mod_val, -np.amax(modulation_cells[common_points])]
+
+#nlc = NonlinearConstraint(constr_f, -np.inf, 1.9)
+#bounds = Bounds([0, 0], [500, 500])
+bounds = [(1e-4, 5.)]
+# bounds_lsq = ([1e-4], [5.])
+#result = differential_evolution(electrode_optimization, bounds, args=(domain, conductivity, nls, post_process), constraints=(nlc), seed=1, maxiter=4)
+result = differential_evolution(electrode_optimization, bounds, args=(domain, conductivity, nls, post_process), disp=True)
+
+# result_min = minimize(electrode_optimization, np.array([1,]), args=(domain, conductivity, nls, post_process), bounds=bounds)
+# result_sq = least_squares(electrode_optimization, np.array([1.,]), args=(domain, conductivity, nls, post_process), bounds=bounds_lsq)
+# result_shgo = shgo(electrode_optimization, bounds, args=(domain, conductivity, nls, post_process))
