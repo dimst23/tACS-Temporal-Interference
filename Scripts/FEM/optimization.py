@@ -163,13 +163,13 @@ def electrode_optimization(x, *data):
     domain, conductivity, solver, post_process, model_name = data
 
     #### Make the electrodes integer
-    x[1:] = np.round(x[1:]).astype(np.int16)
+    electrode_combos = np.round(x[1:]).astype(np.int16)
 
     #### Boundary (electrode) areas
-    r_base_vcc = domain.create_region('Base_VCC', 'vertices of group ' + str(x[1]), 'facet', add_to_regions=False)
-    r_base_gnd = domain.create_region('Base_GND', 'vertices of group ' + str(x[2]), 'facet', add_to_regions=False)
-    r_df_vcc = domain.create_region('DF_VCC', 'vertices of group ' + str(x[3]), 'facet', add_to_regions=False)
-    r_df_gnd = domain.create_region('DF_GND', 'vertices of group ' + str(x[4]), 'facet', add_to_regions=False)
+    r_base_vcc = domain.create_region('Base_VCC', 'vertices of group ' + str(electrode_combos[0]), 'facet', add_to_regions=False)
+    r_base_gnd = domain.create_region('Base_GND', 'vertices of group ' + str(electrode_combos[1]), 'facet', add_to_regions=False)
+    r_df_vcc = domain.create_region('DF_VCC', 'vertices of group ' + str(electrode_combos[2]), 'facet', add_to_regions=False)
+    r_df_gnd = domain.create_region('DF_GND', 'vertices of group ' + str(electrode_combos[3]), 'facet', add_to_regions=False)
     #### Boundary (electrode) areas
 
     #### Essential boundary conditions
