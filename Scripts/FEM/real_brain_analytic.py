@@ -121,10 +121,20 @@ for region in settings['SfePy'][options.model]['regions'].items():
 	domain.create_region(region[0], 'cells of group ' + str(region[1]['id']))
 	conductivities[region[0]] = region[1]['conductivity']
 
+x = [25, 12, 23, 16]
+"""
 for electrode in settings['SfePy'][options.model]['electrodes'].items():
 	if electrode[0] != 'conductivity':
 		domain.create_region(electrode[0], 'cells of group ' + str(electrode[1]['id']))
 		conductivities[electrode[0]] = settings['SfePy'][options.model]['electrodes']['conductivity']
+"""
+for electrode in settings['SfePy'][options.model]['electrodes'].items():
+	if electrode[0] != 'conductivity':
+		domain.create_region(electrode[0], 'cells of group ' + str(electrode[1]['id']))
+		if electrode[1]['id'] in x:
+			conductivities[electrode[0]] = settings['SfePy'][options.model]['electrodes']['conductivity']
+		else:
+			conductivities[electrode[0]] = 1.
 #### Region definition
 
 #### Material definition
@@ -133,10 +143,10 @@ conductivity = Material('conductivity', function=Function('get_conductivity', la
 #### Material definition
 
 #### Boundary (electrode) areas
-r_base_vcc = domain.create_region('Base_VCC', 'vertices of group 25', 'facet')
-r_base_gnd = domain.create_region('Base_GND', 'vertices of group 12', 'facet')
-r_df_vcc = domain.create_region('DF_VCC', 'vertices of group 23', 'facet')
-r_df_gnd = domain.create_region('DF_GND', 'vertices of group 16', 'facet')
+r_base_vcc = domain.create_region('Base_VCC', 'vertices of group 26', 'facet')
+r_base_gnd = domain.create_region('Base_GND', 'vertices of group 16', 'facet')
+r_df_vcc = domain.create_region('DF_VCC', 'vertices of group 22', 'facet')
+r_df_gnd = domain.create_region('DF_GND', 'vertices of group 12', 'facet')
 #### Boundary (electrode) areas
 
 #### Essential boundary conditions
@@ -172,17 +182,19 @@ equations = Equations([eq_base, eq_df])
 #### Solver definition
 
 ls_status = IndexedStruct()
-"""
+
 ls = PyAMGSolver({
-	'i_max': 10,
-	'eps_r': 1e-12,
+	'i_max': 500,
+	'eps_r': 1e-4,
 }, status=ls_status)
 """
-ls = PyAMGSolver({
+ls = PETScKrylovSolver({
 	'i_max': 100,
-	'eps_r': 1e-12,
-	'accel': 'minres'
+	'eps_r': 1e-4,
+    'method': 'minres',
+    'precond': 'ilu',
 }, status=ls_status)
+"""
 #ls = ScipySuperLU({}, status=ls_status)
 #ls = ScipyUmfpack({}, status=ls_status)
 
