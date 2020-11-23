@@ -199,10 +199,10 @@ conductivity = Material('conductivity', function=Function('get_conductivity',
 
 ls_status = IndexedStruct()
 
-"""
+
 ls = PETScKrylovSolver({
     'i_max': 600,
-    'eps_r': 1e-12,
+    'eps_r': 1e-4,
     'ksp_type': 'cg',
     'pc_type': 'hypre',
     'pc_hypre_type': 'boomeramg',
@@ -215,6 +215,7 @@ ls = PETScKrylovSolver({
     'eps_r': 1e-12,
     'verbose': 2,
 }, status=ls_status)
+"""
 
 # ls = ScipyUmfpack({}, status=ls_status)
 

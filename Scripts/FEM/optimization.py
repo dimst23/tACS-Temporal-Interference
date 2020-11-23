@@ -51,7 +51,7 @@ from sfepy.discrete import (FieldVariable, Material, Integral, Integrals, Equati
 from sfepy.discrete.fem import Mesh, FEDomain, Field
 from sfepy.terms import Term
 from sfepy.discrete.conditions import Conditions, EssentialBC
-from sfepy.solvers.ls import PyAMGSolver
+from sfepy.solvers.ls import PyAMGSolver, PyAMGKrylovSolver, PETScKrylovSolver
 from sfepy.solvers.nls import Newton
 #### SfePy libraries
 
@@ -140,15 +140,27 @@ conductivity = Material('conductivity', function=Function('get_conductivity', la
 #### Solver definition
 
 ls_status = IndexedStruct()
+"""
 ls = PyAMGSolver({
-    'i_max': 500,
+    'i_max': 400,
     'eps_r': 1e-4,
+}, status=ls_status)
+"""
+ls = PETScKrylovSolver({
+    'ksp_max_it': 100,
+    'ksp_rtol': 1e-6,
+    'ksp_atol': 2e-3,
+    'ksp_type': 'cg',
+    'pc_type': 'hypre',
+    'pc_hypre_type': 'boomeramg',
+    'pc_hypre_boomeramg_coarsen_type': 'HMIS',
+    'verbose': 2,
 }, status=ls_status)
 
 nls_status = IndexedStruct()
 nls = Newton({
     'i_max': 1,
-    'eps_a': 1e-4,
+    'eps_a': 2e-3,
 }, lin_solver=ls, status=nls_status)
 #### Solver definition
 
@@ -208,9 +220,9 @@ def electrode_optimization(x, *data):
     problem.set_solver(solver)
 
     # Solve the problem
-    # state = problem.solve(post_process_hook=post_process)
-    state = problem.solve()
-
+    state = problem.solve(post_process_hook=post_process)
+    # state = problem.solve()
+    
     e_field_base = problem.evaluate('-ev_grad.2.Omega(potential_base)', mode='qp')
     e_field_df = problem.evaluate('-ev_grad.2.Omega(potential_df)', mode='qp')
 
@@ -268,6 +280,8 @@ def electrode_optimization(x, *data):
     gc.collect()
     return mod_val
 
+electrode_optimization([1.0, 26, 16, 22, 12], domain, conductivity, nls, post_process, settings['SfePy'][options.model]['electrodes'])
+"""
 bounds = Bounds([0.2, 10, 10, 10, 10], [5., 28, 28, 28, 28])
 nlc = NonlinearConstraint(lambda x: np.unique(np.round(x[1:]), return_counts=True)[1].size, 4, 4) # Keep only unique combinations
 result = differential_evolution(electrode_optimization, bounds, args=(domain, conductivity, nls, post_process, settings['SfePy'][options.model]['electrodes'], ), constraints=(nlc), disp=True)
@@ -286,3 +300,4 @@ print(result.fun)
 
 print("\nNumber of iterations: ")
 print(result.nit)
+"""
