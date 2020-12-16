@@ -36,7 +36,17 @@ def phm_model_meshing(base_path: str, suffix_name: str, electrode_attributes: di
 		print("Self-intersections detected") # WARNING log
 		sub_outer[0] = pymesh.resolve_self_intersection(sub_outer[0])
 
-	part_model = pymesh.tetrahedralize(sub_outer[0], max_radius)
+	#part_model = pymesh.tetrahedralize(sub_outer[0], max_radius)
+	tetgen = pymesh.tetgen()
+	tetgen.points = sub_outer[0].vertices
+	tetgen.triangles = sub_outer[0].faces
+	tetgen.max_tet_volume = 15.0
+	tetgen.max_radius_edge_ratio = 2.
+	tetgen.verbosity = 3
+	tetgen.exact_arithmetic = True
+	tetgen.optimization_level = 4 # Change it
+	tetgen.run()
+	part_model = tetgen.mesh
 
 	sp_tet = pymesh.tetrahedralize(sub_outer[1], max_radius)
 
