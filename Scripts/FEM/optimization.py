@@ -147,9 +147,9 @@ ls = PyAMGSolver({
 }, status=ls_status)
 """
 ls = PETScKrylovSolver({
-    'ksp_max_it': 100,
-    'ksp_rtol': 1e-6,
-    'ksp_atol': 2e-3,
+    'ksp_max_it': 250,
+    'ksp_rtol': 1e-7,
+    'ksp_atol': 1e-3,
     'ksp_type': 'cg',
     'pc_type': 'hypre',
     'pc_hypre_type': 'boomeramg',
@@ -160,7 +160,7 @@ ls = PETScKrylovSolver({
 nls_status = IndexedStruct()
 nls = Newton({
     'i_max': 1,
-    'eps_a': 2e-3,
+    'eps_a': 1e-3,
 }, lin_solver=ls, status=nls_status)
 #### Solver definition
 

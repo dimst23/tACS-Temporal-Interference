@@ -64,6 +64,7 @@ def get_conductivity(ts, coors, mode=None, equations=None, term=None, problem=No
 	"""
 	# Execute only once at the initialization
 	if mode == 'qp':
+		np.save('coords', coors)
 		values = np.empty(int(coors.shape[0]/4)) # Each element corresponds to one coordinate of the respective tetrahedral edge
 
 		# Save the conductivity values

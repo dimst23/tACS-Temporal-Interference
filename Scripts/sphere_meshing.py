@@ -1,5 +1,6 @@
 import pymesh
 import numpy as np
+import scipy.io as sio
 
 import Meshing.mesh_operations as mesh_ops
 import Meshing.electrode_operations as electrode_operations
@@ -18,6 +19,16 @@ s2_stl = pymesh.load_mesh(base_path + 'spheres_skull.stl')
 s3_stl = pymesh.load_mesh(base_path + 'spheres_csf.stl')
 s4_stl = pymesh.load_mesh(base_path + 'spheres_brain.stl')
 ##### Import th model files to create the mesh
+
+standard_electrodes = sio.loadmat(os.path.join(base_path, '10-20_elec_spheres.mat'))
+
+elec_attributes = {
+    'names': [name[0][0] for name in standard_electrodes['ElectrodeNames']],
+    'coordinates': standard_electrodes['ElectrodePts'],
+    'width': 3,
+    'radius': 4,
+    'elements': 200,
+}
 
 # Generate the mesh of the model
 ##### Electrodes
@@ -84,39 +95,39 @@ boundary_surfaces = pymesh.separate_mesh(boundary_surfaces)
 boundary_surfaces = mesh_ops.boundary_order([s1_stl, s2_stl, s3_stl, s4_stl], boundary_surfaces)
 
 dom_roi_1 = {
-	'x_min': np.amin(elec_base_vcc.vertices[:, 0]),
-	'x_max': np.amax(elec_base_vcc.vertices[:, 0]),
-	'y_min': np.amin(elec_base_vcc.vertices[:, 1]),
-	'y_max': np.amax(elec_base_vcc.vertices[:, 1]),
-	'z_min': np.amin(elec_base_vcc.vertices[:, 2]),
-	'z_max': np.amax(elec_base_vcc.vertices[:, 2]),
+    'x_min': np.amin(elec_base_vcc.vertices[:, 0]),
+    'x_max': np.amax(elec_base_vcc.vertices[:, 0]),
+    'y_min': np.amin(elec_base_vcc.vertices[:, 1]),
+    'y_max': np.amax(elec_base_vcc.vertices[:, 1]),
+    'z_min': np.amin(elec_base_vcc.vertices[:, 2]),
+    'z_max': np.amax(elec_base_vcc.vertices[:, 2]),
 }
 
 dom_roi_2 = {
-	'x_min': np.amin(elec_base_gnd.vertices[:, 0]),
-	'x_max': np.amax(elec_base_gnd.vertices[:, 0]),
-	'y_min': np.amin(elec_base_gnd.vertices[:, 1]),
-	'y_max': np.amax(elec_base_gnd.vertices[:, 1]),
-	'z_min': np.amin(elec_base_gnd.vertices[:, 2]),
-	'z_max': np.amax(elec_base_gnd.vertices[:, 2]),
+    'x_min': np.amin(elec_base_gnd.vertices[:, 0]),
+    'x_max': np.amax(elec_base_gnd.vertices[:, 0]),
+    'y_min': np.amin(elec_base_gnd.vertices[:, 1]),
+    'y_max': np.amax(elec_base_gnd.vertices[:, 1]),
+    'z_min': np.amin(elec_base_gnd.vertices[:, 2]),
+    'z_max': np.amax(elec_base_gnd.vertices[:, 2]),
 }
 
 dom_roi_3 = {
-	'x_min': np.amin(elec_df_vcc.vertices[:, 0]),
-	'x_max': np.amax(elec_df_vcc.vertices[:, 0]),
-	'y_min': np.amin(elec_df_vcc.vertices[:, 1]),
-	'y_max': np.amax(elec_df_vcc.vertices[:, 1]),
-	'z_min': np.amin(elec_df_vcc.vertices[:, 2]),
-	'z_max': np.amax(elec_df_vcc.vertices[:, 2]),
+    'x_min': np.amin(elec_df_vcc.vertices[:, 0]),
+    'x_max': np.amax(elec_df_vcc.vertices[:, 0]),
+    'y_min': np.amin(elec_df_vcc.vertices[:, 1]),
+    'y_max': np.amax(elec_df_vcc.vertices[:, 1]),
+    'z_min': np.amin(elec_df_vcc.vertices[:, 2]),
+    'z_max': np.amax(elec_df_vcc.vertices[:, 2]),
 }
 
 dom_roi_4 = {
-	'x_min': np.amin(elec_df_gnd.vertices[:, 0]),
-	'x_max': np.amax(elec_df_gnd.vertices[:, 0]),
-	'y_min': np.amin(elec_df_gnd.vertices[:, 1]),
-	'y_max': np.amax(elec_df_gnd.vertices[:, 1]),
-	'z_min': np.amin(elec_df_gnd.vertices[:, 2]),
-	'z_max': np.amax(elec_df_gnd.vertices[:, 2]),
+    'x_min': np.amin(elec_df_gnd.vertices[:, 0]),
+    'x_max': np.amax(elec_df_gnd.vertices[:, 0]),
+    'y_min': np.amin(elec_df_gnd.vertices[:, 1]),
+    'y_max': np.amax(elec_df_gnd.vertices[:, 1]),
+    'z_min': np.amin(elec_df_gnd.vertices[:, 2]),
+    'z_max': np.amax(elec_df_gnd.vertices[:, 2]),
 }
 mesh_domains_elec = mesh_ops.domain_extract(part_model, boundary_surfaces_elec)
 
@@ -141,25 +152,25 @@ em_p = np.empty(part_model.num_vertices)
 i = 4
 '''
 for mesh in msh_f:
-	em_c[mesh.get_attribute("ori_voxel_index").astype(np.int32)] = i
-	em_t[mesh.get_attribute("ori_voxel_index").astype(np.int32)] = 20
-	em_p[np.unique(part_model.voxels[mesh.get_attribute("ori_voxel_index").astype(np.int32)])] = i
-	i = i + 1
+    em_c[mesh.get_attribute("ori_voxel_index").astype(np.int32)] = i
+    em_t[mesh.get_attribute("ori_voxel_index").astype(np.int32)] = 20
+    em_p[np.unique(part_model.voxels[mesh.get_attribute("ori_voxel_index").astype(np.int32)])] = i
+    i = i + 1
 '''
 for key in msh_f.keys():
-	em_c[msh_f[key]['mesh'].get_attribute("ori_voxel_index").astype(np.int32)] = msh_f[key]['id']
-	em_p[np.unique(part_model.voxels[msh_f[key]['mesh'].get_attribute("ori_voxel_index").astype(np.int32)])] = msh_f[key]['id']
+    em_c[msh_f[key]['mesh'].get_attribute("ori_voxel_index").astype(np.int32)] = msh_f[key]['id']
+    em_p[np.unique(part_model.voxels[msh_f[key]['mesh'].get_attribute("ori_voxel_index").astype(np.int32)])] = msh_f[key]['id']
 
 for elec in elecs_l:
-	em_c[elec.get_attribute("ori_voxel_index").astype(np.int32)] = i
-	em_p[np.unique(part_model.voxels[elec.get_attribute("ori_voxel_index").astype(np.int32)])] = i
-	i = i + 1
+    em_c[elec.get_attribute("ori_voxel_index").astype(np.int32)] = i
+    em_p[np.unique(part_model.voxels[elec.get_attribute("ori_voxel_index").astype(np.int32)])] = i
+    i = i + 1
 
 mss = meshio.Mesh(
-	points=part_model.vertices,
-	point_data={"node_groups": em_p},
-	cells={"tetra": part_model.voxels},
-	cell_data={"mat_id": em_c},
+    points=part_model.vertices,
+    point_data={"node_groups": em_p},
+    cells={"tetra": part_model.voxels},
+    cell_data={"mat_id": em_c},
 )
 
 mss.write('msh.vtk')

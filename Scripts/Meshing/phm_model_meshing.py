@@ -32,16 +32,17 @@ def phm_model_meshing(base_path: str, suffix_name: str, electrode_attributes: di
 	print("Boundary - Electrode Separation") # INFO log
 	sub_outer[0] = pymesh.merge_meshes((sub_outer[0], skull_stl, csf_stl, wm_stl, gm_stl, ventricles_stl, cerebellum_stl))
 
-	if pymesh.detect_self_intersection(sub_outer[0]).size:
-		print("Self-intersections detected") # WARNING log
-		sub_outer[0] = pymesh.resolve_self_intersection(sub_outer[0])
+	#if pymesh.detect_self_intersection(sub_outer[0]).size:
+	#	print("Self-intersections detected") # WARNING log
+	#	sub_outer[0] = pymesh.resolve_self_intersection(sub_outer[0])
 
 	#part_model = pymesh.tetrahedralize(sub_outer[0], max_radius)
 	tetgen = pymesh.tetgen()
 	tetgen.points = sub_outer[0].vertices
 	tetgen.triangles = sub_outer[0].faces
-	tetgen.max_tet_volume = 15.0
-	tetgen.max_radius_edge_ratio = 2.
+	tetgen.max_tet_volume = 30.0
+	tetgen.max_radius_edge_ratio = 1.55
+	tetgen.min_dihedral_angle = 30
 	tetgen.verbosity = 3
 	tetgen.exact_arithmetic = True
 	tetgen.optimization_level = 4 # Change it

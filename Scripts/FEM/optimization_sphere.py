@@ -207,6 +207,7 @@ ls = PETScKrylovSolver({
     'pc_type': 'hypre',
     'pc_hypre_type': 'boomeramg',
     'pc_hypre_boomeramg_coarsen_type': 'HMIS',
+    'citations': 'petsc_cites',
     'verbose': 2,
 }, status=ls_status)
 """

@@ -4,8 +4,10 @@ import Meshing.phm_model_meshing as model_meshing
 import meshio
 import scipy.io as sio
 
-base_path = '/mnt/c/Users/Dimitris/Documents/Brains/'
-folders = next(os.walk(base_path))[1]
+base_path = '/mnt/c/Users/Dimitris/Downloads/Head_Models_Fixed/'
+# folders = next(os.walk(base_path))[1]
+#folders = ['103414', '105014', '105115', '110411', '111716', '113619', '117122', '163129', '196750']
+folders = ['103414']
 
 if __name__ == '__main__':
 	for folder in folders:
