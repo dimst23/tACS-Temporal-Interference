@@ -9,14 +9,14 @@ class FileOperations():
         with open(file_name, "wb") as m_file:
             # Nodes
             m_file.write("{} 3\n".format(len(nodes)).encode("utf-8"))
-            for index, node in enumerate(nodes):
-                m_file.write("{} {} {} {}\n".format(index + 1, *node[index]).encode("utf-8"))
+            for index in range(0, len(nodes)):
+                m_file.write("{} {} {} {}\n".format(index + 1, *nodes[index]).encode("utf-8"))
 
             # Faces
             m_file.write("{} 1\n".format(len(faces)).encode("utf-8"))
-            for index, face in enumerate(faces):
+            for index in range(0, len(faces)):
                 m_file.write("1 0 {}\n".format(int(boundaries[index] + 1)).encode("utf-8"))
-                m_file.write("3 {} {} {}\n".format(*face[index] + 1).encode("utf-8"))
+                m_file.write("3 {} {} {}\n".format(*faces[index] + 1).encode("utf-8"))
 
             # Holes NOT IMPLEMENTED YET
             m_file.write("0\n".encode("utf-8"))
@@ -24,7 +24,7 @@ class FileOperations():
             # Regions
             m_file.write("{}\n".format(len(list(regions.keys()))).encode("utf-8"))
             for region_id in regions.keys():
-                m_file.write("{} {} {} {} {} {}\n".format(region_id, *regions[region_id]['coordinate'], region_id, regions[region_id]['max_volume']).encode("utf-8"))
+                m_file.write("{} {} {} {} {} {}\n".format(region_id, *regions[region_id]['coordinates'], region_id, regions[region_id]['max_volume']).encode("utf-8"))
 
     @staticmethod
     def gmsh_write(file_name: str, surfaces, domains, physical_tags, bounding_surface_tag):
