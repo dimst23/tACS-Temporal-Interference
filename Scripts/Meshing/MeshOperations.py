@@ -1,116 +1,68 @@
+import os
+import meshio
 import pymesh
 import numpy as np
 
-def domain_extract(mesh, boundary, direction='out', cary_zeros=True, keep_zeros=False):
-	"""Extract the subdomains of a mesh defined by a low bound surface
+import Meshing.ElectrodeOperations as ElecOps
+import FileOps.FileOperations as FileOps
 
-	Arguments:
-		mesh {[type]} -- [description]
-		boundary {[type]} -- [description]
+class MeshOperations(ElecOps.ElectrodeOperations):
+    def __init__(self):
+        self.merged_meshes = None
+        print()
 
-	Keyword Arguments:
-		direction {str} -- [description] (default: {'out'})
-		cary_zeros {bool} -- [description] (default: {True})
-		keep_zeros {bool} -- [description] (default: {False})
+    def phm_model_meshing(self, base_path: str, suffix_name: str, mesh_filename: str, electrode_attributes: dict):
+        ##### Import th model files to create the mesh
+        print("Importing files") # INFO log
+        skin_stl = pymesh.load_mesh(os.path.join(base_path, 'skin' + suffix_name))
+        skull_stl = pymesh.load_mesh(os.path.join(base_path, 'skull' + suffix_name))
+        csf_stl = pymesh.load_mesh(os.path.join(base_path, 'csf' + suffix_name))
+        gm_stl = pymesh.load_mesh(os.path.join(base_path, 'gm' + suffix_name))
+        wm_stl = pymesh.load_mesh(os.path.join(base_path, 'wm' + suffix_name))
+        ventricles_stl = pymesh.load_mesh(os.path.join(base_path, 'ventricles' + suffix_name))
+        cerebellum_stl = pymesh.load_mesh(os.path.join(base_path, 'cerebellum' + suffix_name))
+        ##### Import th model files to create the mesh
 
-	Returns:
-		[type] -- [At index 0 the current domain can be found. At index 1 the complementary mesh is saved.]
-	"""
-	distances = list(pymesh.signed_distance_to_mesh(boundary, mesh.vertices))
+        ##### Electrode placement
+        print("Placing Electrodes") # INFO log
+        electrodes_object = ElecOps.ElectrodeOperations(skin_stl, electrode_attributes)
+        electrodes_object.standard_electrode_positioning(width=electrode_attributes['width'], radius=electrode_attributes['radius'], elements=electrode_attributes['elements'])
+        skin_with_electrodes = electrodes_object.add_electrodes_on_skin()[0]
 
-	# The following line has been added after a lot of pain and effort, lasting for more than 3 days! At first it seemed that for some reason the function was keeping the points that we supposed to belong on the other surface. After some accidental printing of the distances to manually check it, I noticed a negative distance but it was -1e-15!!! A distance such small it is zero, but due to round issues it was considered as a negative one!! The solution is to round to a float and maybe a smaller rounding is more than sufficient.
-	distances[0] = np.round(distances[0], 8)
-	
-	if direction == 'out':
-		vert_id_roi = np.where(distances[0] > 0)[0]
-		vert_id_rest = np.where(distances[0] < 0)[0]
-	elif direction == 'in':
-		vert_id_roi = np.where(distances[0] < 0)[0]
-		vert_id_rest = np.where(distances[0] > 0)[0]
-	else:
-		print("Wrong '%s' direction entered" % direction)
-		return -1
-	
-	# Get the region of interest voxels
-	vox_id_roi = np.isin(mesh.voxels, vert_id_roi)
-	vox_id_roi = np.where(vox_id_roi == True)[0]
-	vox_id_roi = np.unique(vox_id_roi)
-	
-	# Save the rest of the voxels
-	vox_id_rest = np.isin(mesh.voxels, vert_id_rest)
-	vox_id_rest = np.where(vox_id_rest == True)[0]
-	vox_id_rest = np.unique(vox_id_rest)
-	
-	if cary_zeros:
-		vox_id_rest_0 = np.isin(mesh.voxels, np.where(distances[0] == 0)[0])
-		vox_id_rest_0 = np.where(np.sum(vox_id_rest_0, axis=1) == 4)[0]
-		vox_id_rest = np.unique(np.hstack((vox_id_rest, vox_id_rest_0)))
-	
-	if keep_zeros:
-		vox_id_roi_0 = np.isin(mesh.voxels, np.where(distances[0] == 0)[0])
-		vox_id_roi_0 = np.where(np.sum(vox_id_roi_0, axis=1) == 4)[0]
-		vox_id_roi = np.unique(np.hstack((vox_id_roi, vox_id_roi_0)))
-	
-	if vox_id_rest.size == 0:
-		return [pymesh.submesh(mesh, vox_id_roi, 0), 0]
-	else:
-		return [pymesh.submesh(mesh, vox_id_roi, 0), pymesh.submesh(mesh, vox_id_rest, 0)]
+        electrodes_single_mesh = electrodes_object.get_electrode_single_mesh()
+        electrodes = pymesh.boolean(electrodes_single_mesh, skin_stl, 'difference')
+        pymesh.map_face_attribute(electrodes_single_mesh, electrodes, 'face_sources')
+        ##### Electrode placement
 
-def mesh_form(meshes: list, extract_directions: list, zero_operations: list, output_order: dict):
-	"""[summary]
+        self.merged_meshes = pymesh.merge_meshes((skin_with_electrodes, skull_stl, csf_stl, gm_stl, wm_stl, cerebellum_stl, ventricles_stl))
+        regions = self.region_points([skin_stl, skull_stl, csf_stl, gm_stl, wm_stl, cerebellum_stl, ventricles_stl], electrodes, 0.1)
 
-	Arguments:
-		meshes {list} -- The list of bounding surfaces. At zero index the initial surface resides
-		boundary_order {list} -- Order that the boundary surfaces shall be used in sequence
-		extract_directions {list} -- Directions of extraction in accordance with the domain_extract function
-		zero_operations {list} -- What to do with the zero voxels
-		output_order {list} -- Correct order the elements shall be in the output
+        FileOps.FileOperations.poly_write(mesh_filename, self.merged_meshes.vertices, self.merged_meshes.faces, self.merged_meshes.get_attribute('face_sources'), regions)
 
-	Returns:
-		list -- A list of ordered, based on output_order, conditioned meshes
-	"""
-	domains = {}
-	keys = list(output_order.keys())
+    def region_points(self, boundary_surfaces: list, electrode_mesh, shift: float, max_volume=30):
+        points = {}
+        i = 1
+        for surface in boundary_surfaces:
+            vertices = surface.vertices
+            max_z_point_id = np.where(vertices[:, 2] == np.amax(vertices[:, 2]))[0][0]
+            points[str(i)] = {
+                'coordinates': np.round(vertices[max_z_point_id] - np.absolute(np.multiply(vertices[max_z_point_id]/np.linalg.norm(vertices[max_z_point_id]), [0, 0, shift])), 6),
+                'max_volume': max_volume,
+            }
+            i = i + 1
 
-	for i in range(0, len(meshes[1]) - 1):
-		if i == 0:
-			# For the first mesh start from the base
-			dm = domain_extract(meshes[0], meshes[1][extract_directions[i][1]], direction=extract_directions[i][0], cary_zeros=zero_operations[i][0], keep_zeros=zero_operations[i][1])
-		else:
-			dm = domain_extract(dm[1], meshes[1][extract_directions[i][1]], direction=extract_directions[i][0], cary_zeros=zero_operations[i][0], keep_zeros=zero_operations[i][1])
-		#domains.insert(output_order[i], dm[0])
-		domains[keys[i]] = {'mesh': dm[0], 'id': output_order[keys[i]]}
+        i = 10
+        electrode_regions = electrode_mesh.get_attribute('face_sources')
+        electrode_mesh.add_attribute('vertex_valance')
+        vertex_valance = electrode_mesh.get_attribute('vertex_valance')
+        for region in np.unique(electrode_regions):
+            faces = electrode_mesh.faces[np.where(electrode_regions == region)[0]]
+            vertices = electrode_mesh.vertices[np.unique(faces)]
+            max_valance_point = np.where(vertex_valance[np.unique(faces)] == np.amax(vertex_valance[np.unique(faces)]))[0][0]
+            points[str(i)] = {
+                'coordinates': np.round(vertices[max_valance_point] - np.multiply(vertices[max_valance_point]/np.linalg.norm(vertices[max_valance_point]), shift), 6),
+                'max_volume': max_volume,
+            }
+            i = i + 1
 
-	if type(dm[1]) is not int:
-		#domains.insert(output_order[-1], dm[1])
-		domains[keys[-1]] = {'mesh': dm[1], 'id': output_order[keys[-1]]}
-	return domains
-
-def mesh_conditioning(meshes: dict):
-	"""[summary]
-
-	Arguments:
-		meshes {list} -- [description]
-
-	Returns:
-		list -- [description]
-	"""
-	keys = list(meshes.keys())
-	msh = [list(msh.values())[0] for msh in list(meshes.values())]
-
-	for i in range(0, len(msh)):
-		for j in range(i + 1, len(msh)):
-			dups = np.where(np.isin(msh[j].get_attribute("ori_voxel_index"), msh[i].get_attribute("ori_voxel_index"), invert=True))[0]
-			if dups.shape[0] > 0:
-				meshes[keys[j]]['mesh'] = pymesh.submesh(msh[j], dups, 0)
-	return meshes
-
-def boundary_order(init_boundary: list, boundary_surfaces: list):
-	ordered_bounds = []
-	for boundary in init_boundary:
-		for surface in boundary_surfaces:
-			distances = pymesh.distance_to_mesh(surface, boundary.vertices)
-			# Arbitrary number of non zero values
-			if distances[0].shape[0] != np.count_nonzero(distances[0]):
-				ordered_bounds.append(surface)
-	return ordered_bounds
+        return points
