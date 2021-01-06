@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 import os
+import gc
 import sys
 import meshio
 import numpy as np
@@ -17,7 +18,7 @@ from sfepy.solvers.nls import Newton
 import Meshing.modulation_envelope as mod_env
 
 class Solver:
-    def __init__(self, settings_file: dict, settings_header: str):
+    def __init__(self, settings_file: dict, settings_header: str, electrode_system: str):
         self.__settings = settings_file
         self.__settings_header = settings_header
         if os.name == 'nt':
@@ -30,16 +31,18 @@ class Solver:
         self.__non_linear_solver = None
         self.__overall_volume = None
         self.conductivities = {}
+        self.electrode_system = electrode_system
 
         # Read from settings
         self.__material_conductivity = None
         self.__selected_model = None
         self.domain = None
+        self.problem = None
         self.essential_boundaries = []
         self.field_variables = {}
         self.fields = {}
 
-    def load_mesh(self, model=None):
+    def load_mesh(self, model=None, connectivity='3_4'):
         if model is None:
             raise AttributeError('No model was selected.')
         mesh = meshio.read(self.__settings[self.__settings_header][model]['mesh_file' + self.__extra_path])
@@ -54,7 +57,7 @@ class Solver:
             roi_cells = np.unique(cells[np.where(cell_groups == group)[0]])
             vertex_groups[roi_cells] = group
 
-        loaded_mesh = Mesh.from_data('mesh_name', vertices, vertex_groups, [cells], [cell_groups], ['3_4'])
+        loaded_mesh = Mesh.from_data('mesh_name', vertices, vertex_groups, [cells], [cell_groups], [connectivity])
         self.domain = FEDomain('domain', loaded_mesh)
 
     def define_field_variable(self, var_name: str, field_name: str):
@@ -94,20 +97,30 @@ class Solver:
             'eps_a': absolute_tol,
         }, lin_solver=self.__linear_solver)
 
-    def run(self, post_precess_calculation=True):
+    def run_solver(self, save_results: bool, post_process_calculation=True):
         if not self.__non_linear_solver:
             raise AttributeError('The solver is not setup. Please set it up before calling run.')
         self.__material_definition()
-        problem = Problem('temporal_interference', equations=self.__generate_equations())
-        problem.set_bcs(ebcs=Conditions(self.essential_boundaries))
-        problem.set_solver(self.__non_linear_solver)
 
-        if post_precess_calculation:
-            return problem.solve(post_process_hook=self.__post_process)
-        return problem.solve()
+        self.problem = Problem('temporal_interference', equations=self.__generate_equations())
+        self.problem.set_bcs(ebcs=Conditions(self.essential_boundaries))
+        self.problem.set_solver(self.__non_linear_solver)
+
+        if post_process_calculation:
+            return self.problem.solve(post_process_hook=self.__post_process, save_results=save_results)
+        return self.problem.solve(save_results=save_results)
 
     def set_custom_post_process(self, function):
         self.__post_process = function
+
+    def clear_all(self):
+        del self.domain
+        del self.__overall_volume
+        del self.essential_boundaries
+        del self.field_variables
+        del self.fields
+        del self.problem
+        gc.collect()
 
     def __generate_equations(self):
         # TODO: Add a check for the existence of the fields
@@ -137,7 +150,7 @@ class Solver:
             self.domain.create_region(region[0], 'cells of group ' + str(region[1]['id']))
             self.conductivities[region[0]] = region[1]['conductivity']
 
-        for electrode in self.__settings[self.__settings_header]['electrodes']['10-20'].items():
+        for electrode in self.__settings[self.__settings_header]['electrodes'][self.electrode_system].items():
             self.domain.create_region(electrode[0], 'cells of group ' + str(electrode[1]['id']))
             self.conductivities[electrode[0]] = self.__settings[self.__settings_header]['electrodes']['conductivity']
 
