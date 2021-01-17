@@ -1,6 +1,7 @@
 import os
 import gc
 import numpy as np
+from datetime import datetime
 from scipy.optimize import differential_evolution, NonlinearConstraint, Bounds
 from geneticalgorithm import geneticalgorithm as ga
 
@@ -24,6 +25,10 @@ class Optimization(solver.Solver):
         if np.unique(np.round(x), return_counts=True)[1].size != 4:
             pen = 500 + 1000*(2 + x[0] - x[1] + x[2] - x[3])
             print("\nVariables (Penalty): {} {} {} {}\n".format(x[0], x[1], x[2], x[3]))
+
+            with open('', "a") as fl:
+                date_time = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+                fl.write("{};{} {} {} {};{};{}\n".format(date_time, *x, pen, 1))
             gc.collect()
             return round(pen, 5)
 
@@ -81,8 +86,12 @@ class Optimization(solver.Solver):
         s_cells = sourounding_cells[np.isin(sourounding_cells, common_points, invert=True)]
         sourounding_value = np.average(modulation_values[s_cells])
 
-        mod_val = round(sourounding_value/roi_value + pen, 5)
+        mod_val = round(sourounding_value/roi_value, 5)
         print("\nVariables (Correct): {} {} {} {}\n".format(x[0], x[1], x[2], x[3]))
+
+        with open('', "a") as fl:
+            date_time = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+            fl.write("{};{} {} {} {};{};{}\n".format(date_time, *x, mod_val, 0))
         gc.collect()
 
         return mod_val
