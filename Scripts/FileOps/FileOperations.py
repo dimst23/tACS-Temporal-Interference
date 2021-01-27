@@ -5,7 +5,7 @@ class FileOperations():
         print("here")
 
     @staticmethod
-    def poly_write(file_name: str, nodes, faces, boundaries, regions: dict):
+    def poly_write(file_name: str, nodes, faces, regions: dict, boundaries=None):
         with open(file_name, "wb") as m_file:
             # Nodes
             m_file.write("{} 3\n".format(len(nodes)).encode("utf-8"))
@@ -13,10 +13,17 @@ class FileOperations():
                 m_file.write("{} {} {} {}\n".format(index + 1, *nodes[index]).encode("utf-8"))
 
             # Faces
-            m_file.write("{} 1\n".format(len(faces)).encode("utf-8"))
-            for index in range(0, len(faces)):
-                m_file.write("1 0 {}\n".format(int(boundaries[index] + 1)).encode("utf-8"))
-                m_file.write("3 {} {} {}\n".format(*faces[index] + 1).encode("utf-8"))
+            if boundaries is not None:
+                m_file.write("{} 1\n".format(len(faces)).encode("utf-8"))
+                for index in range(0, len(faces)):
+                    m_file.write("1 0 {}\n".format(int(boundaries[index] + 1)).encode("utf-8"))
+                    m_file.write("3 {} {} {}\n".format(*faces[index] + 1).encode("utf-8"))
+            else:
+                m_file.write("{} 0\n".format(len(faces)).encode("utf-8"))
+                for index in range(0, len(faces)):
+                    m_file.write("1 0\n".encode("utf-8"))
+                    m_file.write("3 {} {} {}\n".format(*faces[index] + 1).encode("utf-8"))
+                
 
             # Holes NOT IMPLEMENTED YET
             m_file.write("0\n".encode("utf-8"))
