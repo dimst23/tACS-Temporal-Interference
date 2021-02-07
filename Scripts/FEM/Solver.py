@@ -97,7 +97,7 @@ class Solver:
             'eps_a': absolute_tol,
         }, lin_solver=self.__linear_solver)
 
-    def run_solver(self, save_results: bool, post_process_calculation=True):
+    def run_solver(self, save_results: bool, post_process_calculation=True, output_dir=None, output_file_name=None):
         if not self.__non_linear_solver:
             raise AttributeError('The solver is not setup. Please set it up before calling run.')
         self.__material_definition()
@@ -105,6 +105,7 @@ class Solver:
         self.problem = Problem('temporal_interference', equations=self.__generate_equations())
         self.problem.set_bcs(ebcs=Conditions(self.essential_boundaries))
         self.problem.set_solver(self.__non_linear_solver)
+        self.problem.setup_output(output_filename_trunk=output_file_name, output_dir=output_dir)
 
         if post_process_calculation:
             return self.problem.solve(post_process_hook=self.__post_process, save_results=save_results)
