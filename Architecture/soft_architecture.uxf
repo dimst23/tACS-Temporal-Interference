@@ -1,0 +1,80 @@
+<diagram program="umletino" version="14.4.0-SNAPSHOT"><zoom_level>10</zoom_level><help_text>Space for diagram notes</help_text><element><id>UMLClass</id><coordinates><x>80</x><y>40</y><w>330</w><h>640</h></coordinates><panel_attributes>&lt;&lt;Stereotype&gt;&gt;
+Solver::Solver
+{Some Properties}
+--
++conductivities: dict
++electrode_system: str
++domain: 
++problem: 
++essential_boundaries: list
++field_variable: dict
++fields: dict
+-settings: dict
+-settings_header: str
+-exta_path: str
+-linear_solver: 
+-non_linear_solver: 
+-overall_volume: 
+-material_conductivity: 
+-selected_model: 
+_-ClassAttribute: Long_
+--
+#Operation(i: int): int
+/+AbstractOperation()/
++load_mesh(model: str, connectivity: str)
++define_field_variable(var_name: str, field_name: str)
++define_essential_boundary(region_name: str, group_id: int, 
+                                               field_variable: str, 
+                                               field_values: float)
++solver_setup(max_iterations: int, relative_tol: float,
+                        absolute_tol; float, verbose: bool)
++run_solver(save_results: bool, 
+                     post_process_calculation: bool, output_dir: str, 
+                     output_file_name: str): problem.solve
++set_custom_post_process(function: object)
++clear_all()
+-generate_equations(): Equations
+-material_definition()
+-assign_regions()
+-get_conductivity(): dict
+-post_process(): Struct SfePy
+--
+Responsibilities
+-- Resp1
+*-- Resp2*</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>490</x><y>60</y><w>330</w><h>250</h></coordinates><panel_attributes>Meshing::MeshOperations
+--
++merged_meshes: 
++skin_with_electrodes: 
++electrode_mesh: 
++surface_meshes: list
+--
++load_surface_meshes(base_path: str, file_names: list)
++electrode_meshing(sphere: bool): pymesh.Mesh
++phm_model_meshing(mesh_filename: str)
++sphere_model_meshing(mesh_filename: str)
++region_points(boundary_surfaces: list, shift: float,
+                         electrode_mesh: pymesh.Mesh, 
+                         max_volume: float): dict
+--
+Responsibilities
+-- Resp1
+*-- Resp2*</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>470</x><y>390</y><w>360</w><h>280</h></coordinates><panel_attributes>Meshing::ElectrodeOperations
+--
++electrode_array: dict
+#surface_mesh: pymesh.Mesh
+#electrode_attributes: dict
+--
++add_electrodes_on_skin(): list
++standard_electrode_positioning()
++sphere_electrode_positioning()
++get_electrode_array(): dict
++get_electrode_single_mesh(): pymesh.Mesh
++electrode_position_sphere(radius: float, theta: float, 
+                                              phi: float): numpy.array
+-orient_electrode(init_point: numpy.array): numpy.array
+-orient_electrode_sphere(init_point: numpy.array, 
+                                         delta_point: numpy.array): numpy.array
+--
+Responsibilities
+-- Resp1
+*-- Resp2*</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>650</x><y>300</y><w>30</w><h>110</h></coordinates><panel_attributes>lt=&lt;&lt;&lt;-</panel_attributes><additional_attributes>10;90;10;10</additional_attributes></element></diagram>
