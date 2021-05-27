@@ -21,7 +21,25 @@ class MeshOperations(ElecOps.ElectrodeOperations, FileOps.FileOperations):
         self.merged_meshes = pymesh.merge_meshes((self.skin_with_electrodes, *self.surface_meshes[1:]))
         regions = self.region_points(self.surface_meshes, 0.1, electrode_mesh=self.electrode_mesh)
 
-        self.poly_write(mesh_filename, self.merged_meshes.vertices, self.merged_meshes.faces, regions)
+        self_intersection = pymesh.detect_self_intersection(self.merged_meshes)
+        if self_intersection.size != 0:
+            print("Self intersections detected. Trying to resolve.")
+            temp_meshes = []
+            first_row = np.unique(self.merged_meshes.get_attribute('face_sources')[self_intersection[:, 0]]).astype(np.int)
+            second_row = np.unique(self.merged_meshes.get_attribute('face_sources')[self_intersection[:, 1]]).astype(np.int)
+
+            for index, first_surface in np.ndenumerate(first_row):
+                if first_surface == 0 or second_row[index] == 0:
+                    temp_meshes.append(pymesh.resolve_self_intersection(pymesh.merge_meshes((self.skin_with_electrodes, self.surface_meshes[first_surface]))))
+                else:
+                    temp_meshes.append(pymesh.resolve_self_intersection(pymesh.merge_meshes((self.surface_meshes[second_row[index]], self.surface_meshes[first_surface]))))
+            mask = np.ones(len(self.surface_meshes), np.bool)
+            mask[np.hstack((first_row, second_row))] = False
+            temp_meshes = temp_meshes + [self.skin_with_electrodes if j == 0 else self.surface_meshes[j] for j, i in enumerate(mask) if mask[j]]
+            temp_merged_meshes = pymesh.merge_meshes((*temp_meshes, ))
+            self.poly_write(mesh_filename, temp_merged_meshes.vertices, temp_merged_meshes.faces, regions)
+        else:
+            self.poly_write(mesh_filename, self.merged_meshes.vertices, self.merged_meshes.faces, regions)
 
     def sphere_model_meshing(self, mesh_filename: str):
         if not self.surface_meshes:
