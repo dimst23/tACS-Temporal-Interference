@@ -30,6 +30,7 @@ class Solver:
         self.__linear_solver = None
         self.__non_linear_solver = None
         self.__overall_volume = None
+        self.__overall_surface = None
         self.conductivities = {}
         self.electrode_system = electrode_system
 
@@ -146,38 +147,58 @@ class Solver:
 
     def __assign_regions(self):
         self.__overall_volume = self.domain.create_region('Omega', 'all')
+        self.__overall_surface = self.domain.create_region('Gamma', 'all', 'facet')
 
         for region in self.__settings[self.__settings_header][self.__selected_model]['regions'].items():
             self.domain.create_region(region[0], 'cells of group ' + str(region[1]['id']))
+            self.domain.create_region(region[0] + '_Gamma', 'vertices of group ' + str(region[1]['id']), 'facet')
             self.conductivities[region[0]] = region[1]['conductivity']
 
         for electrode in self.__settings[self.__settings_header]['electrodes'][self.electrode_system].items():
             self.domain.create_region(electrode[0], 'cells of group ' + str(electrode[1]['id']))
+            self.domain.create_region(electrode[0] + '_Gamma', 'vertices of group ' + str(electrode[1]['id']), 'facet')
             self.conductivities[electrode[0]] = self.__settings[self.__settings_header]['electrodes']['conductivity']
 
     def __get_conductivity(self, ts, coors, mode=None, equations=None, term=None, problem=None, conductivities=None):
         # Execute only once at the initialization
         if mode == 'qp':
             values = np.empty(int(coors.shape[0]/4)) # Each element corresponds to one coordinate of the respective tetrahedral edge
+            num_nodes, dim = coors.shape
 
             # Save the conductivity values
             for domain in problem.domain.regions:
                 if domain.name in conductivities.keys():
                     values[domain.entities[3]] = conductivities[domain.name]
 
+            # Values used in a matrix format for the material
+            #mat_vec = np.repeat(values, 4*(dim**2))
+            #mat_vec.shape = (coors.shape[0], dim, dim)
+            tmp_fun = lambda x, dim: x*np.eye(dim) # Required for the diffusion velocity in the current density calculation
+
             values = np.repeat(values, 4) # Account for the tetrahedral edges
+            mat_vec = np.array(list(map(tmp_fun, values, np.repeat(dim, num_nodes))))
             values.shape = (coors.shape[0], 1, 1)
 
-            return {'val' : values}
+            return {'val' : values, 'mat_vec': mat_vec}
 
     def __post_process(self, out, problem, state, extend=False):
-        e_field_base = problem.evaluate('-ev_grad.2.Omega(potential_base)', mode='qp')
-        e_field_df = problem.evaluate('-ev_grad.2.Omega(potential_df)', mode='qp')
+        # scaling_factor = problem.evaluate('-1000.0 * ev_surface_grad.2.Base_VCC_Gamma(potential_df)', mode='eval')
+        # print("Scaling factor")
+        # print(scaling_factor)
+
+        e_field_base = problem.evaluate('-1000 * ev_grad.2.Omega(potential_base)', mode='qp')
+        e_field_df = problem.evaluate('-1000 * ev_grad.2.Omega(potential_df)', mode='qp')
+
+        cur_dens_base = problem.evaluate('1000.0 * ev_diffusion_velocity.2.Omega(conductivity.mat_vec, potential_base)', mode='qp', copy_materials=False)
+        cur_dens_df = problem.evaluate('1000.0 * ev_diffusion_velocity.2.Omega(conductivity.mat_vec, potential_df)', mode='qp', copy_materials=False)
 
         # Calculate the maximum modulation envelope
         modulation_cells = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0])
         modulation_cells = np.repeat(modulation_cells, 4, axis=0).reshape((e_field_base.shape[0], 4, 1, 1))
-        modulation_points = modulation_cells.flatten()[np.unique(problem.domain.mesh.get_conn('3_4').flatten(), return_index=True)[1]]
+
+        # Calculate the maximum modulation envelope (current density)
+        modulation_cells_cur_dens = mod_env.modulation_envelope(cur_dens_base[:, 0, :, 0], cur_dens_df[:, 0, :, 0])
+        modulation_cells_cur_dens = np.repeat(modulation_cells_cur_dens, 4, axis=0).reshape((cur_dens_base.shape[0], 4, 1, 1))
 
         # Calculate the directional modulation envelope
         modulation_x = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0], dir_vector=[1, 0, 0])
@@ -191,8 +212,10 @@ class Solver:
         # Save the output
         out['e_field_base'] = Struct(name='e_field_base', mode='cell', data=e_field_base, dofs=None)
         out['e_field_df'] = Struct(name='e_field_df', mode='cell', data=e_field_df, dofs=None)
-        out['max_modulation'] = Struct(name='max_modulation', mode='cell', data=modulation_cells, dofs=None)
-        out['max_modulation_pts'] = Struct(name='max_modulation_pts', mode='vertex', data=modulation_points, dofs=None)
+        out['j_field_base'] = Struct(name='j_field_base', mode='cell', data=cur_dens_base, dofs=None)
+        out['j_field_df'] = Struct(name='j_field_df', mode='cell', data=cur_dens_df, dofs=None)
+        out['max_modulation_e_field'] = Struct(name='max_modulation_e_field', mode='cell', data=modulation_cells, dofs=None)
+        out['max_modulation_j_field'] = Struct(name='max_modulation_cur_dens', mode='cell', data=modulation_cells_cur_dens, dofs=None)
         out['modulation_x'] = Struct(name='modulation_x', mode='cell', data=modulation_x, dofs=None)
         out['modulation_y'] = Struct(name='modulation_y', mode='cell', data=modulation_y, dofs=None)
         out['modulation_z'] = Struct(name='modulation_z', mode='cell', data=modulation_z, dofs=None)
