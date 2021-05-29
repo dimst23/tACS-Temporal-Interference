@@ -6,13 +6,10 @@ import scipy.io as sio
 
 # base_path = '/home/dimitris/tetgen1.6.0/models'
 base_path = '/home/dimitris/Documents/Thesis/STL_Models/'
-# base_path2 = '/home/dimitris/Documents/Thesis/10-10/'
-base_path2 = '/home/dimitris/Documents/Thesis/Models with Electrodes/meshed'
+base_path2 = '/home/dimitris/Documents/Thesis/Models with Electrodes/meshed/'
 base_path3 = '/home/dimitris/Documents/Thesis/Models with Electrodes/'
-folders = next(os.walk(base_path3))[1]
-#folders = ['103414', '105014', '105115', '110411', '111716', '113619', '117122', '163129', '196750']
-#folders = ['105115', '110411', '111716', '113619', '117122', '163129', '196750']
-#folders = ['101309']
+# folders = next(os.walk(base_path3))[1]
+folders = ['106016', '110411', '118932']
 
 if __name__ == '__main__':
     for folder in folders:

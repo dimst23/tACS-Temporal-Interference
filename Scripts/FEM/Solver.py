@@ -39,6 +39,7 @@ class Solver:
         self.__selected_model = None
         self.domain = None
         self.problem = None
+        self.essential_boundary_ids = {}
         self.essential_boundaries = []
         self.field_variables = {}
         self.fields = {}
@@ -77,7 +78,8 @@ class Solver:
         # TODO: Add a check to see if the provided potential variable is a defined potential
         # TODO: Do not run if there are no field variables
         if field_variable not in self.field_variables.keys():
-            raise AttributeError('The field variable {}')
+            raise AttributeError('The field variable {} is not defined'.format(field_variable))
+        self.essential_boundary_ids[region_name] = group_id
         temporary_domain = self.domain.create_region(region_name, 'vertices of group ' + str(group_id), 'facet', add_to_regions=False)
         self.essential_boundaries.append(EssentialBC(region_name, temporary_domain, {field_variable + '.all' : field_value}))
 
@@ -182,7 +184,12 @@ class Solver:
             return {'val' : values, 'mat_vec': mat_vec}
 
     def __post_process(self, out, problem, state, extend=False):
-        # scaling_factor = problem.evaluate('-1000.0 * ev_surface_grad.2.Base_VCC_Gamma(potential_df)', mode='eval')
+        # electrode_conductivity = self.conductivities['Fp1'] # All electrodes have the same conductivity
+        # electrode_roi = self.essential_boundary_ids['Base_VCC']
+
+        # electrode_intsc_surface = self.domain.create_region('electrode_intsc', 'cells of group ' + str(electrode_roi) + '*v cells of group 1', 'facet', add_to_regions=False)
+        # electrode_intsc_surface.
+        # scaling_factor = electrode_conductivity * problem.evaluate('-1000.0 * ev_surface_grad.2.electrode_intsc(potential_df)', mode='eval', region=electrode_intsc_surface)
         # print("Scaling factor")
         # print(scaling_factor)
 
