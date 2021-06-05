@@ -3,7 +3,8 @@ import gc
 import multiprocessing
 import meshio
 
-base_path = r"/mnt/c/Users/Dimitris/Downloads/Binary_STL"
+# base_path = r"/mnt/c/Users/Dimitris/Downloads/Binary_STL"
+base_path = r"/home/dimitris/Documents/Thesis/STL_Models"
 folders = next(os.walk(base_path))[1]
 
 def fixing(folder):
@@ -19,5 +20,5 @@ def fixing(folder):
     return 0
 
 if __name__ == '__main__':
-    pool = multiprocessing.Pool(processes = 16)
+    pool = multiprocessing.Pool(processes=8)
     pool.map_async(fixing, folders)

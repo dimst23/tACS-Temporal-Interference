@@ -2,7 +2,8 @@ SfePy:
   lib_path: '/home/dimitris/repos/tacs-temporal-interference/Scripts'
   lib_path_windows: 'C:\Users\Dimitris\Nextcloud\Documents\Neuroscience Bachelor Thesis\Public Repository\tacs-temporal-interference\Scripts'
   electrodes:
-    conductivity: 59600000.0
+    #conductivity_copper: 59600000.0
+    conductivity: 4.0
     10-20:
       Fp1:
         id: 10
@@ -222,28 +223,28 @@ SfePy:
     regions:
       Skin:
         id: 1
-        conductivity: 0.17
+        conductivity: 0.465
       Skull:
         id: 2
-        conductivity: 0.003504
+        conductivity: 0.007
       CSF:
         id: 3
-        conductivity: 1.776
+        conductivity: 1.65
       GM:
         id: 4
-        conductivity: 0.2391
+        conductivity: 0.276
       WM:
         id: 5
-        conductivity: 0.2651
+        conductivity: 0.126
       Cerebellum:
         id: 6
-        conductivity: 0.6597
+        conductivity: 0.201
       Ventricles:
         id: 7
-        conductivity: 1.776
+        conductivity: 1.65
   sphere:
     mesh_file: '/home/dimitris/repos/tacs-temporal-interference/CAD/Sphere/meshed_model_sphere.1.vtk'
-    output_dir: '/mnt/c/Users/Dimitris/Nextcloud/Documents/Neuroscience Bachelor Thesis/Public Repository/tacs-temporal-interference/Scripts/FEM'
+    output_dir: '/home/dimitris/Documents/Thesis/'
     mesh_file_windows: 'C:\Users\Dimitris\Nextcloud\Documents\Neuroscience Bachelor Thesis\Public Repository\tacs-temporal-interference\Scripts\msh.vtk'
     output_dir_windows: 'C:\Users\Dimitris\Nextcloud\Documents\Neuroscience Bachelor Thesis\Public Repository\tacs-temporal-interference\Scripts\FEM'
     regions:

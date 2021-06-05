@@ -4,19 +4,21 @@ import Meshing.MeshOperations as MeshOps
 
 import scipy.io as sio
 
-base_path = '/home/dimitris/tetgen1.6.0/models'
-base_path2 = '/home/dimitris/Documents/Thesis/10-10/'
-# folders = next(os.walk(base_path))[1]
-folders = ['103414', '105014', '105115', '110411', '111716', '113619', '117122', '163129', '196750']
-#folders = ['105115', '110411', '111716', '113619', '117122', '163129', '196750']
-#folders = ['126325']
+# base_path = '/home/dimitris/tetgen1.6.0/models'
+base_path = '/home/dimitris/Documents/Thesis/STL_Models/'
+base_path2 = '/home/dimitris/Documents/Thesis/Models with Electrodes/meshed/'
+base_path3 = '/home/dimitris/Documents/Thesis/Models with Electrodes/'
+# folders = next(os.walk(base_path3))[1]
+folders = ['106016', '110411', '118932']
 
 if __name__ == '__main__':
     for folder in folders:
+        if folder == 'meshed':
+            continue
         print("############")
         print("Model " + folder)
         print("############\n")
-        standard_electrodes = sio.loadmat(os.path.join(base_path, folder, '10-10_elec_' + folder + '.mat'))
+        standard_electrodes = sio.loadmat(os.path.join(base_path3, folder, '10-20_elec_' + folder + '.mat'))
         elec_attributes = {
             'names': [name[0][0] for name in standard_electrodes['ElectrodeNames']],
             'coordinates': standard_electrodes['ElectrodePts'],
@@ -29,4 +31,4 @@ if __name__ == '__main__':
 
         meshing = MeshOps.MeshOperations(skin_stl, elec_attributes)
         meshing.load_surface_meshes(os.path.join(base_path, folder), ['skin_fixed.stl', 'skull_fixed.stl', 'csf_fixed.stl', 'gm_fixed.stl', 'wm_fixed.stl', 'cerebellum_fixed.stl', 'ventricles_fixed.stl'])
-        meshing.phm_model_meshing(os.path.join(base_path2, 'meshed_model_10-10_' + folder + '.poly'))
+        meshing.phm_model_meshing(os.path.join(base_path2, 'meshed_model_10-20_' + folder + '.poly'))

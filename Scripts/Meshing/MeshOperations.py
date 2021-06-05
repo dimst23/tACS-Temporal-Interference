@@ -1,6 +1,7 @@
 import os
 import pymesh
 import numpy as np
+import itertools
 
 import Meshing.ElectrodeOperations as ElecOps
 import FileOps.FileOperations as FileOps
@@ -13,7 +14,16 @@ class MeshOperations(ElecOps.ElectrodeOperations, FileOps.FileOperations):
         self.surface_meshes = []
         ElecOps.ElectrodeOperations.__init__(self, surface_mesh, electrode_attributes)
 
-    def phm_model_meshing(self, mesh_filename: str):
+    def phm_model_meshing(self, mesh_filename: str, resolve_intersections=True):
+        """Generate a .poly file of the provided model mesh.
+
+        Args:
+            mesh_filename (str): The path where to save the meshed model file
+            resolve_intersections (bool, optional): Whether to resolve any self-intersections the model might have. Defaults to True.
+
+        Raises:
+            AttributeError: If the class variable `surface_meshes` does not contain the model meshes, throw the error.
+        """
         if not self.surface_meshes:
             raise AttributeError('Meshes must be loaded first. Please load the meshes.')
         self.electrode_meshing()
@@ -21,7 +31,30 @@ class MeshOperations(ElecOps.ElectrodeOperations, FileOps.FileOperations):
         self.merged_meshes = pymesh.merge_meshes((self.skin_with_electrodes, *self.surface_meshes[1:]))
         regions = self.region_points(self.surface_meshes, 0.1, electrode_mesh=self.electrode_mesh)
 
-        self.poly_write(mesh_filename, self.merged_meshes.vertices, self.merged_meshes.faces, regions)
+        self_intersection = pymesh.detect_self_intersection(self.merged_meshes)
+        if self_intersection.size != 0 & resolve_intersections:
+            # TODO: Add a log statement that self intersections where detected
+            temp_meshes = []
+            combination_pairs = 2
+            surface_meshes = np.array(self.surface_meshes)
+            surface_meshes[0] = self.skin_with_electrodes
+
+            unique_intersections = np.unique(self.merged_meshes.get_attribute('face_sources')[self_intersection]).astype(np.int32)
+            intersection_combinations = np.array(list(itertools.combinations(unique_intersections, combination_pairs))).astype(np.int32)
+
+            for combination in intersection_combinations:
+                if pymesh.detect_self_intersection(pymesh.merge_meshes((*surface_meshes[combination], ))).size != 0:
+                    temp_meshes.append(pymesh.resolve_self_intersection(pymesh.merge_meshes((*surface_meshes[combination], ))))
+
+            mask_intersecting = np.ones(len(surface_meshes), np.bool)
+            mask_intersecting[unique_intersections] = False
+
+            temp_meshes = temp_meshes + [surface_meshes[j] for j, i in enumerate(mask_intersecting) if mask_intersecting[j]]
+            temp_merged_meshes = pymesh.merge_meshes((*temp_meshes, ))
+
+            self.poly_write(mesh_filename, temp_merged_meshes.vertices, temp_merged_meshes.faces, regions)
+        else:
+            self.poly_write(mesh_filename, self.merged_meshes.vertices, self.merged_meshes.faces, regions)
 
     def sphere_model_meshing(self, mesh_filename: str):
         if not self.surface_meshes:
