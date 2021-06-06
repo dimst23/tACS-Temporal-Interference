@@ -2,8 +2,9 @@ from __future__ import absolute_import
 import os
 import gc
 import sys
-import meshio
 import numpy as np
+from numpy.core.fromnumeric import mean
+import pyvista as pv
 
 #### SfePy libraries
 from sfepy.base.base import Struct
@@ -18,7 +19,7 @@ from sfepy.solvers.nls import Newton
 import Meshing.modulation_envelope as mod_env
 
 class Solver:
-    def __init__(self, settings_file: dict, settings_header: str, electrode_system: str):
+    def __init__(self, settings_file: dict, settings_header: str, electrode_system: str, units: str = 'mm'):
         self.__settings = settings_file
         self.__settings_header = settings_header
         if os.name == 'nt':
@@ -31,8 +32,11 @@ class Solver:
         self.__non_linear_solver = None
         self.__overall_volume = None
         self.__overall_surface = None
+        self.__fields_to_calculate = []
+        self.__electrode_currents = {}
         self.conductivities = {}
         self.electrode_system = electrode_system
+        self.units = units
 
         # Read from settings
         self.__material_conductivity = None
@@ -44,44 +48,51 @@ class Solver:
         self.field_variables = {}
         self.fields = {}
 
-    def load_mesh(self, model=None, connectivity='3_4'):
+    def load_mesh(self, model=None, connectivity='3_4', id_array_name='cell_scalars'):
         if model is None:
             raise AttributeError('No model was selected.')
-        mesh = meshio.read(self.__settings[self.__settings_header][model]['mesh_file' + self.__extra_path])
+        mesh = pv.UnstructuredGrid(self.__settings[self.__settings_header][model]['mesh_file' + self.__extra_path])
         self.__selected_model = model
 
         vertices = mesh.points
         vertex_groups = np.empty(vertices.shape[0])
-        cells = mesh.cells[0][1]
-        cell_groups = mesh.cell_data['cell_scalars'][0]
+        cells = mesh.cell_connectivity.reshape((-1, 4)) # TODO: Generalize for higher order connectivity
+        cell_groups = mesh.cell_arrays[id_array_name]
 
         for group in np.unique(cell_groups):
             roi_cells = np.unique(cells[np.where(cell_groups == group)[0]])
             vertex_groups[roi_cells] = group
 
-        loaded_mesh = Mesh.from_data('mesh_name', vertices, vertex_groups, [cells], [cell_groups], [connectivity])
-        self.domain = FEDomain('domain', loaded_mesh)
+        loaded_mesh = Mesh.from_data('model_mesh', vertices, vertex_groups, [cells], [cell_groups], [connectivity])
+        self.domain = FEDomain('model_domain', loaded_mesh)
 
-    def define_field_variable(self, var_name: str, field_name: str):
-        # TODO: Check if the provided field exists
+        del mesh
+
+    def define_field_variable(self, field_var_name: str, field_name: str):
         if not self.__overall_volume:
             self.__assign_regions()
         if field_name not in self.fields.keys():
             self.fields[field_name] = Field.from_args(field_name, dtype=np.float64, shape=(1, ), region=self.__overall_volume, approx_order=1)
 
-        self.field_variables[var_name] = {
-            'unknown': FieldVariable(var_name, 'unknown', field=self.fields[field_name]),
-            'test': FieldVariable(var_name + '_test', 'test', field=self.fields[field_name], primary_var_name=var_name),
+        self.field_variables[field_var_name] = {
+            'unknown': FieldVariable(field_var_name, 'unknown', field=self.fields[field_name]),
+            'test': FieldVariable(field_var_name + '_test', 'test', field=self.fields[field_name], primary_var_name=field_var_name),
         }
 
-    def define_essential_boundary(self, region_name: str, group_id: int, field_variable: str, field_value: float):
-        # TODO: Add a check to see if the provided potential variable is a defined potential
-        # TODO: Do not run if there are no field variables
-        if field_variable not in self.field_variables.keys():
-            raise AttributeError('The field variable {} is not defined'.format(field_variable))
+    def define_essential_boundary(self, region_name: str, group_id: int, field_variable: str, potential: float = None, current: float = None):
+        assert field_variable in self.field_variables.keys(), 'The field variable {} is not defined'.format(field_variable)
+        assert (potential is not None) ^ (current is not None), 'Only potential or current value shall be provided.'
+
+        if current is not None:
+            try:
+                self.__electrode_currents[field_variable][region_name] = current
+            except KeyError:
+                self.__electrode_currents[field_variable] = {region_name: current}
+            potential = 1 if current > 0 else 0
+
         self.essential_boundary_ids[region_name] = group_id
         temporary_domain = self.domain.create_region(region_name, 'vertices of group ' + str(group_id), 'facet', add_to_regions=False)
-        self.essential_boundaries.append(EssentialBC(region_name, temporary_domain, {field_variable + '.all' : field_value}))
+        self.essential_boundaries.append(EssentialBC(region_name, temporary_domain, {field_variable + '.all' : potential}))
 
     def solver_setup(self, max_iterations=250, relative_tol=1e-7, absolute_tol=1e-3, verbose=False):
         self.__linear_solver = PETScKrylovSolver({
@@ -100,10 +111,13 @@ class Solver:
             'eps_a': absolute_tol,
         }, lin_solver=self.__linear_solver)
 
-    def run_solver(self, save_results: bool, post_process_calculation=True, output_dir=None, output_file_name=None):
+    def run_solver(self, save_results: bool, post_process_calculation=True, field_calculation: list = ['E'], output_dir=None, output_file_name=None):
         if not self.__non_linear_solver:
             raise AttributeError('The solver is not setup. Please set it up before calling run.')
         self.__material_definition()
+
+        if field_calculation:
+            self.__fields_to_calculate = field_calculation
 
         self.problem = Problem('temporal_interference', equations=self.__generate_equations())
         self.problem.set_bcs(ebcs=Conditions(self.essential_boundaries))
@@ -173,8 +187,6 @@ class Solver:
                     values[domain.entities[3]] = conductivities[domain.name]
 
             # Values used in a matrix format for the material
-            #mat_vec = np.repeat(values, 4*(dim**2))
-            #mat_vec.shape = (coors.shape[0], dim, dim)
             tmp_fun = lambda x, dim: x*np.eye(dim) # Required for the diffusion velocity in the current density calculation
 
             values = np.repeat(values, 4) # Account for the tetrahedral edges
@@ -184,47 +196,36 @@ class Solver:
             return {'val' : values, 'mat_vec': mat_vec}
 
     def __post_process(self, out, problem, state, extend=False):
-        # electrode_conductivity = self.conductivities['Fp1'] # All electrodes have the same conductivity
-        # electrode_roi = self.essential_boundary_ids['Base_VCC']
-
-        # electrode_intsc_surface = self.domain.create_region('electrode_intsc', 'cells of group ' + str(electrode_roi) + '*v cells of group 1', 'facet', add_to_regions=False)
-        # electrode_intsc_surface.
-        # scaling_factor = electrode_conductivity * problem.evaluate('-1000.0 * ev_surface_grad.2.electrode_intsc(potential_df)', mode='eval', region=electrode_intsc_surface)
-        # print("Scaling factor")
-        # print(scaling_factor)
-
-        e_field_base = problem.evaluate('-1000 * ev_grad.2.Omega(potential_base)', mode='qp')
-        e_field_df = problem.evaluate('-1000 * ev_grad.2.Omega(potential_df)', mode='qp')
-
-        cur_dens_base = problem.evaluate('1000.0 * ev_diffusion_velocity.2.Omega(conductivity.mat_vec, potential_base)', mode='qp', copy_materials=False)
-        cur_dens_df = problem.evaluate('1000.0 * ev_diffusion_velocity.2.Omega(conductivity.mat_vec, potential_df)', mode='qp', copy_materials=False)
-
-        # Calculate the maximum modulation envelope
-        modulation_cells = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0])
-        modulation_cells = np.repeat(modulation_cells, 4, axis=0).reshape((e_field_base.shape[0], 4, 1, 1))
-
-        # Calculate the maximum modulation envelope (current density)
-        modulation_cells_cur_dens = mod_env.modulation_envelope(cur_dens_base[:, 0, :, 0], cur_dens_df[:, 0, :, 0])
-        modulation_cells_cur_dens = np.repeat(modulation_cells_cur_dens, 4, axis=0).reshape((cur_dens_base.shape[0], 4, 1, 1))
-
-        # Calculate the directional modulation envelope
-        modulation_x = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0], dir_vector=[1, 0, 0])
-        modulation_y = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0], dir_vector=[0, 1, 0])
-        modulation_z = mod_env.modulation_envelope(e_field_base[:, 0, :, 0], e_field_df[:, 0, :, 0], dir_vector=[0, 0, 1])
-
-        modulation_x = np.repeat(modulation_x, 4, axis=0).reshape((e_field_base.shape[0], 4, 1, 1))
-        modulation_y = np.repeat(modulation_y, 4, axis=0).reshape((e_field_base.shape[0], 4, 1, 1))
-        modulation_z = np.repeat(modulation_z, 4, axis=0).reshape((e_field_base.shape[0], 4, 1, 1))
-
+        electrode_conductivity = self.__settings[self.__settings_header]['electrodes']['conductivity']
+        electrode_material = Material('electrode', kind='stationary', values={'mat_vec': electrode_conductivity*np.eye(3)})
+        
         # Save the output
-        out['e_field_base'] = Struct(name='e_field_base', mode='cell', data=e_field_base, dofs=None)
-        out['e_field_df'] = Struct(name='e_field_df', mode='cell', data=e_field_df, dofs=None)
-        out['j_field_base'] = Struct(name='j_field_base', mode='cell', data=cur_dens_base, dofs=None)
-        out['j_field_df'] = Struct(name='j_field_df', mode='cell', data=cur_dens_df, dofs=None)
-        out['max_modulation_e_field'] = Struct(name='max_modulation_e_field', mode='cell', data=modulation_cells, dofs=None)
-        out['max_modulation_j_field'] = Struct(name='max_modulation_cur_dens', mode='cell', data=modulation_cells_cur_dens, dofs=None)
-        out['modulation_x'] = Struct(name='modulation_x', mode='cell', data=modulation_x, dofs=None)
-        out['modulation_y'] = Struct(name='modulation_y', mode='cell', data=modulation_y, dofs=None)
-        out['modulation_z'] = Struct(name='modulation_z', mode='cell', data=modulation_z, dofs=None)
+        for field_variable_name in self.field_variables.keys():
+            if self.units == 'mm':
+                distance_unit_multiplier = 1000
+            else:
+                distance_unit_multiplier = 1
+            
+            if self.__electrode_currents:
+                mean_current = 0
+                currents = list(self.__electrode_currents[field_variable_name].values())
+                regions = list(self.__electrode_currents[field_variable_name].keys())
+                assert np.sum(currents) == 0, 'The currents must sum to zero. The current sum is {}'.format(np.sum(currents))
+
+                for region in regions:
+                    flux = 1./distance_unit_multiplier * problem.evaluate('d_surface_flux.2.' + region + '_Gamma(electrode.mat_vec, ' + field_variable_name + ')', mode='eval', copy_materials=False, electrode=electrode_material)
+                    area = 1./(distance_unit_multiplier**2) * problem.evaluate('d_surface.2.' + region + '_Gamma(' + field_variable_name + ')', mode='eval')
+                    mean_current += np.abs(flux*area)
+                mean_current = mean_current/len(regions)
+                distance_unit_multiplier *= np.abs(currents[0]*0.001)/mean_current # Current is always in mA
+
+            if 'E' in np.char.upper(self.__fields_to_calculate):
+                output_var_name = 'e_field_(' + field_variable_name + ')'
+                e_field = distance_unit_multiplier * problem.evaluate('-ev_grad.2.Omega(' + field_variable_name + ')', mode='qp')
+                out[output_var_name] = Struct(name=output_var_name, mode='cell', data=e_field, dofs=None)
+            if 'J' in np.char.upper(self.__fields_to_calculate):
+                output_var_name = 'j_field_(' + field_variable_name + ')'
+                j_field = distance_unit_multiplier * problem.evaluate('ev_diffusion_velocity.2.Omega(conductivity.mat_vec, ' + field_variable_name + ')', mode='qp', copy_materials=False)
+                out[output_var_name] = Struct(name=output_var_name, mode='cell', data=j_field, dofs=None)
 
         return out
