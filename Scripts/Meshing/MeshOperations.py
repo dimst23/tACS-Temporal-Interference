@@ -2,6 +2,7 @@ import os
 import pymesh
 import numpy as np
 import itertools
+import warnings
 
 import Meshing.ElectrodeOperations as ElecOps
 import FileOps.FileOperations as FileOps
@@ -32,8 +33,12 @@ class MeshOperations(ElecOps.ElectrodeOperations, FileOps.FileOperations):
         regions = self.region_points(self.surface_meshes, 0.1, electrode_mesh=self.electrode_mesh)
 
         self_intersection = pymesh.detect_self_intersection(self.merged_meshes)
-        if self_intersection.size != 0 & resolve_intersections:
-            # TODO: Add a log statement that self intersections where detected
+        if self_intersection.size != 0:
+            if resolve_intersections:
+                warnings.warn('Self intersections were detected. Trying to resolve', UserWarning)
+            else:
+                raise Warning('Self intersections were detected. User selected not to resolve.')
+
             temp_meshes = []
             combination_pairs = 2
             surface_meshes = np.array(self.surface_meshes)
