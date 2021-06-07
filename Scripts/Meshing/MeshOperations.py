@@ -14,7 +14,7 @@ class MeshOperations(ElecOps.ElectrodeOperations, FileOps.FileOperations):
         self.surface_meshes = []
         ElecOps.ElectrodeOperations.__init__(self, surface_mesh, electrode_attributes)
 
-    def phm_model_meshing(self, mesh_filename: str, resolve_intersections=True):
+    def phm_model_meshing(self, mesh_filename: str, resolve_intersections=True, electrodes_to_omit=None):
         """Generate a .poly file of the provided model mesh.
 
         Args:
@@ -26,7 +26,7 @@ class MeshOperations(ElecOps.ElectrodeOperations, FileOps.FileOperations):
         """
         if not self.surface_meshes:
             raise AttributeError('Meshes must be loaded first. Please load the meshes.')
-        self.electrode_meshing()
+        self.electrode_meshing(electrodes_to_omit=electrodes_to_omit)
 
         self.merged_meshes = pymesh.merge_meshes((self.skin_with_electrodes, *self.surface_meshes[1:]))
         regions = self.region_points(self.surface_meshes, 0.1, electrode_mesh=self.electrode_mesh)
@@ -59,7 +59,7 @@ class MeshOperations(ElecOps.ElectrodeOperations, FileOps.FileOperations):
     def sphere_model_meshing(self, mesh_filename: str):
         if not self.surface_meshes:
             raise AttributeError('Meshes must be loaded first. Please load the meshes.')
-        self.electrode_meshing(True)
+        self.electrode_meshing(sphere=True)
 
         self.merged_meshes = pymesh.merge_meshes((self.skin_with_electrodes, *self.surface_meshes[1:]))
         regions = self.region_points(self.surface_meshes, 0.1, electrode_mesh=self.electrode_mesh)
@@ -71,12 +71,12 @@ class MeshOperations(ElecOps.ElectrodeOperations, FileOps.FileOperations):
         for file_name in file_names:
             self.surface_meshes.append(pymesh.load_mesh(os.path.join(base_path, file_name)))
 
-    def electrode_meshing(self, sphere=False):
+    def electrode_meshing(self, sphere=False, electrodes_to_omit=None):
         print("Placing Electrodes") # INFO log
         if sphere:
             self.sphere_electrode_positioning()
         else:
-            self.standard_electrode_positioning()
+            self.standard_electrode_positioning(electrodes_to_omit)
         self.skin_with_electrodes = self.add_electrodes_on_skin()[0]
 
         electrodes_single_mesh = self.get_electrode_single_mesh()
@@ -99,7 +99,6 @@ class MeshOperations(ElecOps.ElectrodeOperations, FileOps.FileOperations):
             i = i + 1
 
         if electrode_mesh is not None:
-            i = 10
             electrode_regions = electrode_mesh.get_attribute('face_sources')
             electrode_mesh.add_attribute('vertex_valance')
             vertex_valance = electrode_mesh.get_attribute('vertex_valance')
@@ -107,10 +106,9 @@ class MeshOperations(ElecOps.ElectrodeOperations, FileOps.FileOperations):
                 faces = electrode_mesh.faces[np.where(electrode_regions == region)[0]]
                 vertices = electrode_mesh.vertices[np.unique(faces)]
                 max_valance_point = np.where(vertex_valance[np.unique(faces)] == np.amax(vertex_valance[np.unique(faces)]))[0][0]
-                points[str(i)] = {
+                points[str(region)] = {
                     'coordinates': np.round(vertices[max_valance_point] - np.multiply(vertices[max_valance_point]/np.linalg.norm(vertices[max_valance_point]), shift), 6),
                     'max_volume': max_volume,
                 }
-                i = i + 1
 
         return points
