@@ -27,22 +27,22 @@ class ElectrodeOperations:
 
         return [pymesh.submesh(conditioned_surface, np.isin(face_id, pymesh.detect_self_intersection(conditioned_surface)[:, 0], invert=True), 0), outer_diff]  # Get rid of the duplicate faces on the tangent surface, without merging the points
 
-    def standard_electrode_positioning(self):
+    def standard_electrode_positioning(self, electrodes_to_omit=None):
         width = self._electrode_attributes['width']
         radius = self._electrode_attributes['radius']
         elements = self._electrode_attributes['elements']
 
-        closest_point = pymesh.distance_to_mesh(self._surface_mesh, self._electrode_attributes['coordinates'])[1] # Get the closest point to the one provided
+        closest_points = pymesh.distance_to_mesh(self._surface_mesh, self._electrode_attributes['coordinates'])[1] # Get the closest point to the one provided
 
-        i = 0
-        for electrode_name in self._electrode_attributes['names']:
-            p_i = self._surface_mesh.vertices[self._surface_mesh.faces[closest_point[i]]][0] # Get the surface vertex coordinates
+        for electrode_name, closest_point in zip(self._electrode_attributes['names'], closest_points):
+            if electrode_name in electrodes_to_omit:
+                continue
+            p_i = self._surface_mesh.vertices[self._surface_mesh.faces[closest_point]][0] # Get the surface vertex coordinates
             electrode_orientation = self.__orient_electrode(p_i) # Orient the electrode perpendicular to the surface
 
             # Generate the electrode cylinder and save to the output dictionary
             electrode_cylinder = pymesh.generate_cylinder(p_i - (width * electrode_orientation)/4., p_i + (width * electrode_orientation)/4., radius, radius, elements)
             self.electrode_array[electrode_name] = electrode_cylinder
-            i = i + 1
 
     def sphere_electrode_positioning(self):
         cyl_radius = self._electrode_attributes['cylinder_radius']
@@ -66,9 +66,17 @@ class ElectrodeOperations:
         return self.electrode_array
 
     def get_electrode_single_mesh(self):
-        if not self.electrode_array:
-            raise AttributeError('Electrodes are not positioned yet. Please call the positioning function.')
-        return pymesh.merge_meshes((e_mesh for e_mesh in self.electrode_array.values()))
+        assert self.electrode_array, 'Electrodes are not positioned yet. Please call the positioning function.'
+
+        merged_meshes = pymesh.merge_meshes((e_mesh for e_mesh in self.electrode_array.values()))
+        merged_ids = merged_meshes.get_attribute('face_sources')
+        new_attribute_ids = np.empty(merged_meshes.num_faces)
+
+        for electrode_face_source, electrode_name in zip(np.unique(merged_ids), self.electrode_array.keys()):
+            id_array_positions = np.where(merged_ids == electrode_face_source)[0]
+            new_attribute_ids[id_array_positions] = self._electrode_attributes['ids'][electrode_name]['id']
+        merged_meshes.set_attribute('face_sources', new_attribute_ids)
+        return merged_meshes
 
     def __orient_electrode(self, init_point):
         """[summary]
