@@ -3,7 +3,6 @@ import os
 import gc
 import sys
 import numpy as np
-from numpy.core.fromnumeric import mean
 import pyvista as pv
 
 #### SfePy libraries
@@ -34,6 +33,7 @@ class Solver:
         self.__overall_surface = None
         self.__fields_to_calculate = []
         self.__electrode_currents = {}
+        self._electrode_names = {}
         self.conductivities = {}
         self.electrode_system = electrode_system
         self.units = units
@@ -111,7 +111,7 @@ class Solver:
             'eps_a': absolute_tol,
         }, lin_solver=self.__linear_solver)
 
-    def run_solver(self, save_results: bool, post_process_calculation=True, field_calculation: list = ['E'], output_dir=None, output_file_name=None):
+    def run_solver(self, save_results: bool, post_process_calculation: bool, field_calculation: list = ['E'], output_dir=None, output_file_name=None):
         if not self.__non_linear_solver:
             raise AttributeError('The solver is not setup. Please set it up before calling run.')
         self.__material_definition()
@@ -125,7 +125,10 @@ class Solver:
         self.problem.setup_output(output_filename_trunk=output_file_name, output_dir=output_dir)
 
         if post_process_calculation:
-            return self.problem.solve(post_process_hook=self.__post_process, save_results=save_results)
+            state = self.problem.solve(save_results=save_results)
+            output_dictionary = state.create_output_dict()
+            output_dictionary = self.__post_process(output_dictionary, self.problem, state, extend=True)
+            return output_dictionary
         return self.problem.solve(save_results=save_results)
 
     def set_custom_post_process(self, function):
@@ -174,6 +177,7 @@ class Solver:
             self.domain.create_region(electrode[0], 'cells of group ' + str(electrode[1]['id']))
             self.domain.create_region(electrode[0] + '_Gamma', 'vertices of group ' + str(electrode[1]['id']), 'facet')
             self.conductivities[electrode[0]] = self.__settings[self.__settings_header]['electrodes']['conductivity']
+            self._electrode_names[int(electrode[1]['id'])] = electrode[0]
 
     def __get_conductivity(self, ts, coors, mode=None, equations=None, term=None, problem=None, conductivities=None):
         # Execute only once at the initialization
