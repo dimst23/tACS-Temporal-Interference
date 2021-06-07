@@ -1,4 +1,5 @@
 import os
+import yaml
 import pymesh
 import Meshing.MeshOperations as MeshOps
 
@@ -11,6 +12,9 @@ base_path3 = '/home/dimitris/Documents/Thesis/Models with Electrodes/'
 # folders = next(os.walk(base_path3))[1]
 folders = ['106016', '110411', '118932']
 
+with open(os.path.realpath('/mnt/d/Neuro Publication/sim_settings.yml')) as stream:
+    settings = yaml.safe_load(stream)
+
 if __name__ == '__main__':
     for folder in folders:
         if folder == 'meshed':
@@ -22,6 +26,7 @@ if __name__ == '__main__':
         elec_attributes = {
             'names': [name[0][0] for name in standard_electrodes['ElectrodeNames']],
             'coordinates': standard_electrodes['ElectrodePts'],
+            'ids': settings['SfePy']['electrodes']['10-20'],
             'width': 4,
             'radius': 4,
             'elements': 200,
