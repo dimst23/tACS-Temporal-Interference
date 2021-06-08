@@ -28,7 +28,7 @@ parser.add_argument('--model', metavar='str', type=str,
                     default='real_brain', help=helps['model'], required=True)
 parser.add_argument('--csv_save_dir', metavar='str', type=str,
                     action='store', dest='csv_save_dir',
-                    default=None, help=helps['model_dir'], required=False)
+                    default=None, required=True)
 parser.add_argument('--job_id', metavar='str', type=str,
                     action='store', dest='job_id',
                     default='', required=False)
