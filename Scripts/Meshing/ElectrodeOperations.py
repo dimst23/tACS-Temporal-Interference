@@ -70,7 +70,7 @@ class ElectrodeOperations:
 
         merged_meshes = pymesh.merge_meshes((e_mesh for e_mesh in self.electrode_array.values()))
         merged_ids = merged_meshes.get_attribute('face_sources')
-        new_attribute_ids = np.empty(merged_meshes.num_faces)
+        new_attribute_ids = np.empty(merged_meshes.num_faces, dtype=int)
 
         for electrode_face_source, electrode_name in zip(np.unique(merged_ids), self.electrode_array.keys()):
             id_array_positions = np.where(merged_ids == electrode_face_source)[0]

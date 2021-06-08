@@ -15,8 +15,6 @@ from sfepy.solvers.ls import PETScKrylovSolver
 from sfepy.solvers.nls import Newton
 #### SfePy libraries
 
-import Meshing.modulation_envelope as mod_env
-
 class Solver:
     def __init__(self, settings_file: dict, settings_header: str, electrode_system: str, units: str = 'mm'):
         self.__settings = settings_file
@@ -73,6 +71,7 @@ class Solver:
             self.__assign_regions()
         if field_name not in self.fields.keys():
             self.fields[field_name] = Field.from_args(field_name, dtype=np.float64, shape=(1, ), region=self.__overall_volume, approx_order=1)
+            self.__electrode_currents.clear()
 
         self.field_variables[field_var_name] = {
             'unknown': FieldVariable(field_var_name, 'unknown', field=self.fields[field_name]),
@@ -128,6 +127,8 @@ class Solver:
             state = self.problem.solve(save_results=save_results)
             output_dictionary = state.create_output_dict()
             output_dictionary = self.__post_process(output_dictionary, self.problem, state, extend=True)
+
+            del state
             return output_dictionary
         return self.problem.solve(save_results=save_results)
 
@@ -184,6 +185,7 @@ class Solver:
         if mode == 'qp':
             values = np.empty(int(coors.shape[0]/4)) # Each element corresponds to one coordinate of the respective tetrahedral edge
             num_nodes, dim = coors.shape
+            material_dict = {}
 
             # Save the conductivity values
             for domain in problem.domain.regions:
@@ -194,10 +196,14 @@ class Solver:
             tmp_fun = lambda x, dim: x*np.eye(dim) # Required for the diffusion velocity in the current density calculation
 
             values = np.repeat(values, 4) # Account for the tetrahedral edges
-            mat_vec = np.array(list(map(tmp_fun, values, np.repeat(dim, num_nodes))))
-            values.shape = (coors.shape[0], 1, 1)
+            if 'J' in np.char.upper(self.__fields_to_calculate):
+                mat_vec = np.array(list(map(tmp_fun, values, np.repeat(dim, num_nodes))))
+                material_dict['mat_vec'] = mat_vec
 
-            return {'val' : values, 'mat_vec': mat_vec}
+            values.shape = (coors.shape[0], 1, 1)
+            material_dict['val'] = values
+
+            return material_dict
 
     def __post_process(self, out, problem, state, extend=False):
         electrode_conductivity = self.__settings[self.__settings_header]['electrodes']['conductivity']
