@@ -87,7 +87,7 @@ class Solver:
                 self.__electrode_currents[field_variable][region_name] = current
             except KeyError:
                 self.__electrode_currents[field_variable] = {region_name: current}
-            potential = 1 if current > 0 else 0
+            potential = 1 if current > 0 else -1
 
         self.essential_boundary_ids[region_name] = group_id
         temporary_domain = self.domain.create_region(region_name, 'vertices of group ' + str(group_id), 'facet', add_to_regions=False)
