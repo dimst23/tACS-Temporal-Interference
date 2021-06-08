@@ -6,26 +6,55 @@ import yaml
 import numpy as np
 import pandas as pd
 
-with open(os.path.realpath('/home/dimitris/repos/tacs-temporal-interference/Scripts/FEM/sim_settings.yml')) as stream:
+from argparse import ArgumentParser, RawDescriptionHelpFormatter
+
+#### Argument parsing
+helps = {
+    'settings-file' : "File having the settings to be loaded",
+    'model' : "Name of the model. Selection from the settings file",
+}
+
+parser = ArgumentParser(description=__doc__,
+                        formatter_class=RawDescriptionHelpFormatter)
+parser.add_argument('--version', action='version', version='%(prog)s')
+parser.add_argument('--settings-file', metavar='str', type=str,
+                    action='store', dest='settings_file',
+                    default=None, help=helps['settings-file'], required=True)
+parser.add_argument('--meshf', metavar='str', type=str,
+                    action='store', dest='meshf',
+                    default=None, required=True)
+parser.add_argument('--model', metavar='str', type=str,
+                    action='store', dest='model',
+                    default='real_brain', help=helps['model'], required=True)
+parser.add_argument('--csv_save_dir', metavar='str', type=str,
+                    action='store', dest='csv_save_dir',
+                    default=None, help=helps['model_dir'], required=False)
+parser.add_argument('--job_id', metavar='str', type=str,
+                    action='store', dest='job_id',
+                    default='', required=False)
+options = parser.parse_args()
+#### Argument parsing
+
+with open(os.path.realpath(options.settings_file)) as stream:
     settings = yaml.safe_load(stream)
 
-sys.path.append(os.path.realpath(settings['SfePy']['lib_path']))
+if os.name == 'nt':
+    extra_path = '_windows'
+else:
+    extra_path = ''
+
+sys.path.append(os.path.realpath(settings['SfePy']['lib_path' + extra_path]))
 
 import FEM.Solver as slv
 
-# base_path = '/mnt/d/Neuro Publication/'
-# output_dir = '/mnt/d/Neuro Publication/'
-base_path = '/home/dimitris/Documents/Thesis/Models_with_Electrodes/meshed'
-fl = 'Meshed_AAL_101309_10-10_.vtk'
+settings['SfePy'][options.model]['mesh_file' + extra_path] = options.meshf
 
-settings['SfePy']['real_brain']['mesh_file'] = os.path.join(base_path, fl)
-settings['SfePy']['real_brain']['mesh_file_windows'] = os.path.join(base_path, fl)
 
 electrodes = settings['SfePy']['electrodes']['10-10-mod']
 e_field_values = pd.DataFrame()
 
 solve = slv.Solver(settings, 'SfePy', '10-10-mod')
-solve.load_mesh('real_brain')
+solve.load_mesh(options.model)
 
 for electrode in electrodes.items():
     if electrode[0] == 'P9':
@@ -48,4 +77,4 @@ for electrode in electrodes.items():
     del solution
     gc.collect()
 
-e_field_values.to_csv(os.path.join(base_path, '101309_fields.csv'))
+e_field_values.to_csv(os.path.join(options.csv_save_dir, '101309_fields.csv'))
