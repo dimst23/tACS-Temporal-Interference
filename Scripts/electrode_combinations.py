@@ -72,7 +72,8 @@ for electrode in electrodes.items():
     solution = solve.run_solver(save_results=False, post_process_calculation=True)
 
     e_field_base = solution['e_field_(potential)'].data[:, 0, :, 0]
-    e_field_values[electrode[0]] = e_field_base
+    temp_e_field_df = pd.DataFrame({'electrode': {electrode[0]: e_field_base}})
+    e_field_values = pd.concat([e_field_values, temp_e_field_df], axis=0)
 
     del solution
     gc.collect()
