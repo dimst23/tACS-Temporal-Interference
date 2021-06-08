@@ -206,6 +206,129 @@ SfePy:
         id: 89
       Iz:     
         id: 90
+    10-10-mod:
+      Fp1:    
+        id: 10
+      Fpz:    
+        id: 11
+      Fp2:    
+        id: 12
+      AF7:    
+        id: 13
+      AF3:    
+        id: 14
+      AFz:    
+        id: 15
+      AF4:    
+        id: 16
+      AF8:    
+        id: 17
+      F7:     
+        id: 18
+      F5:     
+        id: 19
+      F3:     
+        id: 20
+      F1:     
+        id: 21
+      Fz:     
+        id: 22
+      F2:     
+        id: 23
+      F4:     
+        id: 24
+      F6:     
+        id: 25
+      F8:     
+        id: 26
+      FT7:    
+        id: 27
+      FC5:    
+        id: 28
+      FC3:    
+        id: 29
+      FC1:    
+        id: 30
+      FCz:    
+        id: 31
+      FC2:    
+        id: 32
+      FC4:    
+        id: 33
+      FC6:    
+        id: 34
+      FT8:    
+        id: 35
+      T7:     
+        id: 36
+      C5:     
+        id: 37
+      C3:     
+        id: 38
+      C1:     
+        id: 39
+      Cz:     
+        id: 40
+      C2:     
+        id: 41
+      C4:     
+        id: 42
+      C6:     
+        id: 43
+      T8:     
+        id: 44
+      TP7:    
+        id: 45
+      CP5:    
+        id: 46
+      CP3:    
+        id: 47
+      CP1:    
+        id: 48
+      CPz:    
+        id: 49
+      CP2:    
+        id: 50
+      CP4:    
+        id: 51
+      CP6:    
+        id: 52
+      TP8:    
+        id: 53
+      P7:     
+        id: 54
+      P5:     
+        id: 55
+      P3:     
+        id: 56
+      P1:     
+        id: 57
+      Pz:     
+        id: 58
+      P2:     
+        id: 59
+      P4:     
+        id: 60
+      P6:     
+        id: 61
+      P8:     
+        id: 62
+      PO7:    
+        id: 63
+      PO3:    
+        id: 64
+      POz:    
+        id: 65
+      PO4:    
+        id: 66
+      PO8:    
+        id: 67
+      O1:     
+        id: 68
+      Oz:     
+        id: 69
+      O2:     
+        id: 70
     sphere:
       B_VCC: 
         id: 12
