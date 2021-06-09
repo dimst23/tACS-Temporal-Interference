@@ -81,4 +81,4 @@ for electrode in electrodes.items():
 
 del solve
 gc.collect
-np.save(e_field_values, os.path.join(options.csv_save_dir, '101309_fields'))
+np.save(os.path.join(options.csv_save_dir, '101309_fields'), e_field_values)
