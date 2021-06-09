@@ -4,7 +4,6 @@ import gc
 import sys
 import yaml
 import numpy as np
-import pandas as pd
 
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 
@@ -51,7 +50,7 @@ settings['SfePy'][options.model]['mesh_file' + extra_path] = options.meshf
 
 
 electrodes = settings['SfePy']['electrodes']['10-10-mod']
-e_field_values = pd.DataFrame()
+e_field_values = []
 
 solve = slv.Solver(settings, 'SfePy', '10-10-mod')
 solve.load_mesh(options.model)
@@ -72,10 +71,14 @@ for electrode in electrodes.items():
     solution = solve.run_solver(save_results=False, post_process_calculation=True)
 
     e_field_base = solution['e_field_(potential)'].data[:, 0, :, 0]
-    temp_e_field_df = pd.DataFrame({'electrode': {electrode[0]: e_field_base}})
-    e_field_values = pd.concat([e_field_values, temp_e_field_df], axis=0)
+    if isinstance(e_field_values, list):
+        e_field_values = e_field_base
+    else:
+        e_field_values = np.append(e_field_values, e_field_base, axis=0)
 
     del solution
     gc.collect()
 
-e_field_values.to_csv(os.path.join(options.csv_save_dir, '101309_fields.csv'))
+del solve
+gc.collect
+np.save(e_field_values, os.path.join(options.csv_save_dir, '101309_fields'))
