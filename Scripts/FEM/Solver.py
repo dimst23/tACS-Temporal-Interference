@@ -124,7 +124,11 @@ class Solver:
         self.problem.setup_output(output_filename_trunk=output_file_name, output_dir=output_dir)
 
         if post_process_calculation:
-            state = self.problem.solve(save_results=save_results)
+            if save_results:
+                state = self.problem.solve(save_results=save_results, post_process_hook=self.__post_process)
+                return state
+            else:
+                state = self.problem.solve(save_results=save_results)
             output_dictionary = state.create_output_dict()
             output_dictionary = self.__post_process(output_dictionary, self.problem, state, extend=True)
 
@@ -156,7 +160,7 @@ class Solver:
                 field_variable[0]: field_variable[1]['unknown']
             }
             equation_term = Term.new('dw_laplace(conductivity.val, ' + field_variable[0] + '_test, ' + field_variable[0] + ')', integral, self.__overall_volume, **term_arguments)
-            equations_list.append(Equation('balance', equation_term))
+            equations_list.append(Equation('equation_' + field_variable[0], equation_term))
 
         return Equations(equations_list)
 
@@ -177,6 +181,7 @@ class Solver:
         for electrode in self.__settings[self.__settings_header]['electrodes'][self.electrode_system].items():
             self.domain.create_region(electrode[0], 'cells of group ' + str(electrode[1]['id']))
             self.domain.create_region(electrode[0] + '_Gamma', 'vertices of group ' + str(electrode[1]['id']), 'facet')
+            self.domain.create_region(electrode[0] + '_Gamma_cross', 'r.{} *v r.Skin'.format(electrode[0]), 'facet')
             self.conductivities[electrode[0]] = self.__settings[self.__settings_header]['electrodes']['conductivity']
             self._electrode_names[int(electrode[1]['id'])] = electrode[0]
 
@@ -217,16 +222,18 @@ class Solver:
                 distance_unit_multiplier = 1
             
             if self.__electrode_currents:
-                mean_current = 0
                 currents = list(self.__electrode_currents[field_variable_name].values())
                 regions = list(self.__electrode_currents[field_variable_name].keys())
                 assert np.sum(currents) == 0, 'The currents must sum to zero. The current sum is {}'.format(np.sum(currents))
 
                 for region in regions:
-                    flux = 1./distance_unit_multiplier * problem.evaluate('d_surface_flux.2.' + region + '_Gamma(electrode.mat_vec, ' + field_variable_name + ')', mode='eval', copy_materials=False, electrode=electrode_material)
-                    area = 1./(distance_unit_multiplier**2) * problem.evaluate('d_surface.2.' + region + '_Gamma(' + field_variable_name + ')', mode='eval')
-                    mean_current += np.abs(flux*area)
-                mean_current = mean_current/len(regions)
+                    if self.__electrode_currents[field_variable_name][region] <= 0:
+                        continue
+
+                    flux = 1./(distance_unit_multiplier**2) * problem.evaluate('d_surface_flux.2.' + region + '_Gamma_cross(electrode.mat_vec, ' + field_variable_name + ')', mode='eval', copy_materials=False, electrode=electrode_material)
+                    area = problem.evaluate('d_surface.2.' + region + '_Gamma_cross(' + field_variable_name + ')', mode='eval')
+
+                    mean_current = np.abs(flux*area)
                 distance_unit_multiplier *= np.abs(currents[0]*0.001)/mean_current # Current is always in mA
 
             if 'E' in np.char.upper(self.__fields_to_calculate):
