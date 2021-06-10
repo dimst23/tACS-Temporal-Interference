@@ -2,8 +2,11 @@ from __future__ import absolute_import
 import os
 import gc
 import sys
+from numpy.lib.nanfunctions import nanargmax
+from sfepy.discrete.fem import mesh
 import yaml
 import numpy as np
+import pyvista as pv
 
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 
@@ -48,9 +51,27 @@ import FEM.Solver as slv
 
 settings['SfePy'][options.model]['mesh_file' + extra_path] = options.meshf
 
+## Read the mesh with pyvista to get the area ids and AAL regions
+msh = pv.UnstructuredGrid(options.mesf)
+brain_regions_mask = np.isin(msh['cell_scalars'], [4, 5, 6])
+
+cell_ids_brain = msh['cell_scalars'][brain_regions_mask]
+aal_regions = msh['AAL_regions'][brain_regions_mask]
+cell_volumes_brain = msh.compute_cell_sizes().cell_arrays['Volume'][brain_regions_mask]
+
+region_volumes_brain = {}
+for region in np.unique(aal_regions):
+    roi = np.where(aal_regions == region)[0]
+
+    region = np.sum(cell_volumes_brain[roi])
+    region_volumes_brain[int(region)] = np.sum(cell_volumes_brain[roi])
+del msh
+region_volumes_brain = np.array(region_volumes_brain)
+## Read the mesh with pyvista to get the area ids and AAL regions
 
 electrodes = settings['SfePy']['electrodes']['10-10-mod']
 e_field_values = []
+e_field_values_brain = []
 
 solve = slv.Solver(settings, 'SfePy', '10-10-mod')
 solve.load_mesh(options.model)
@@ -73,12 +94,16 @@ for electrode in electrodes.items():
     e_field_base = solution['e_field_(potential)'].data[:, 0, :, 0]
     if isinstance(e_field_values, list):
         e_field_values = e_field_base
+        e_field_values_brain = e_field_base[brain_regions_mask]
     else:
         e_field_values = np.append(e_field_values, e_field_base, axis=0)
+        e_field_values_brain = np.append(e_field_values_brain, e_field_base[brain_regions_mask], axis=0)
 
     del solution
     gc.collect()
 
 del solve
 gc.collect
-np.save(os.path.join(options.csv_save_dir, '101309_fields'), e_field_values)
+
+np.save(os.path.join(options.csv_save_dir, '101309_fields_all'), e_field_values)
+np.savez_compressed(os.path.join(options.csv_save_dir, '101309_fields_brain'), e_field=e_field_values_brain.reshape((61, -1, 3)), cell_ids=cell_ids_brain, aal_regions=aal_regions, volumes=region_volumes_brain)
