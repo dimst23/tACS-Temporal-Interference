@@ -52,7 +52,7 @@ import FEM.Solver as slv
 settings['SfePy'][options.model]['mesh_file' + extra_path] = options.meshf
 
 ## Read the mesh with pyvista to get the area ids and AAL regions
-msh = pv.UnstructuredGrid(options.mesf)
+msh = pv.UnstructuredGrid(options.meshf)
 brain_regions_mask = np.isin(msh['cell_scalars'], [4, 5, 6])
 
 cell_ids_brain = msh['cell_scalars'][brain_regions_mask]
