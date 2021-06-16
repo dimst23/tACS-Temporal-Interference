@@ -3,15 +3,16 @@ import numpy as np
 
 class ElectrodeOperations:
     def __init__(self, surface_mesh: pymesh.Mesh, electrode_attributes: dict):
-        self._surface_mesh = surface_mesh
+        self._surface_mesh: pymesh.Mesh = surface_mesh
         self._surface_mesh.enable_connectivity() # Required by some functions below
-        self._electrode_attributes = electrode_attributes
-        self.electrode_array = {}
+        self._electrode_attributes: dict = electrode_attributes
+        self.electrode_array: dict = {}
 
-    def add_electrodes_on_skin(self):
+    def add_electrodes_on_skin(self) -> list:
         if not self.electrode_array:
             raise AttributeError('The electrodes shall be positioned first before added on the surface. Please call the positioning function first.')
         electrode_mesh = self.get_electrode_single_mesh()
+
         # Get the surface outline including the electrode
         model = pymesh.merge_meshes((self._surface_mesh, electrode_mesh))
         outer_hull = pymesh.compute_outer_hull(model)
@@ -23,11 +24,12 @@ class ElectrodeOperations:
 
         # Generate the surface with the electrode on
         face_id = np.arange(conditioned_surface.num_faces)
-        conditioned_surface = pymesh.remove_duplicated_vertices(conditioned_surface)[0] # Remove any duplicate vertices
+        conditioned_surface = pymesh.remove_duplicated_vertices(conditioned_surface)[0]
+        non_intersecting_surface = np.isin(face_id, pymesh.detect_self_intersection(conditioned_surface)[:, 0], invert=True)
 
-        return [pymesh.submesh(conditioned_surface, np.isin(face_id, pymesh.detect_self_intersection(conditioned_surface)[:, 0], invert=True), 0), outer_diff]  # Get rid of the duplicate faces on the tangent surface, without merging the points
+        return [pymesh.submesh(conditioned_surface, non_intersecting_surface, 0), outer_diff]
 
-    def standard_electrode_positioning(self, electrodes_to_omit=None):
+    def standard_electrode_positioning(self, electrodes_to_omit: list=None) -> None:
         width = self._electrode_attributes['width']
         radius = self._electrode_attributes['radius']
         elements = self._electrode_attributes['elements']
@@ -44,7 +46,7 @@ class ElectrodeOperations:
             electrode_cylinder = pymesh.generate_cylinder(p_i - (width * electrode_orientation)/4., p_i + (width * electrode_orientation)/4., radius, radius, elements)
             self.electrode_array[electrode_name] = electrode_cylinder
 
-    def sphere_electrode_positioning(self):
+    def sphere_electrode_positioning(self) -> None:
         cyl_radius = self._electrode_attributes['cylinder_radius']
         #skin_radius = self._electrode_attributes['skin_radius']
         skin_radius = np.amax(self._surface_mesh.vertices[:, 0])
@@ -60,12 +62,12 @@ class ElectrodeOperations:
             electrode_cylinder = pymesh.generate_cylinder(p_i - (cyl_width * electrode_orientation)/4., p_i + (cyl_width * electrode_orientation)/4., cyl_radius, cyl_radius, elements)
             self.electrode_array[electrode[0]] = electrode_cylinder
 
-    def get_electrode_array(self):
+    def get_electrode_array(self) -> dict:
         if not self.electrode_array:
             raise AttributeError('Electrodes are not positioned yet. Please call the positioning function.')
         return self.electrode_array
 
-    def get_electrode_single_mesh(self):
+    def get_electrode_single_mesh(self) -> pymesh.Mesh:
         assert self.electrode_array, 'Electrodes are not positioned yet. Please call the positioning function.'
 
         merged_meshes = pymesh.merge_meshes((e_mesh for e_mesh in self.electrode_array.values()))
@@ -78,15 +80,7 @@ class ElectrodeOperations:
         merged_meshes.set_attribute('face_sources', new_attribute_ids)
         return merged_meshes
 
-    def __orient_electrode(self, init_point):
-        """[summary]
-
-        Args:
-            init_point ([type]): [description]
-
-        Returns:
-            [type]: [description]
-        """
+    def __orient_electrode(self, init_point: list):
         point_id = np.where(np.sum(self._surface_mesh.vertices == init_point, axis=1))[0][0] # Unique point assumed
         face = self._surface_mesh.get_vertex_adjacent_faces(point_id)[0]
 
@@ -100,7 +94,7 @@ class ElectrodeOperations:
         normal = np.cross(p_1, p_2)
         return normal/np.linalg.norm(normal)
 
-    def __orient_electrode_sphere(self, init_point, delta_point):
+    def __orient_electrode_sphere(self, init_point: list, delta_point: list):
         dist = pymesh.signed_distance_to_mesh(self._surface_mesh, init_point)
         face = dist[1][0]
 
@@ -114,6 +108,6 @@ class ElectrodeOperations:
         return normal/np.linalg.norm(normal)
 
     @staticmethod
-    def electrode_position_sphere(radius, theta, phi=0):
+    def electrode_position_sphere(radius: float, theta: float, phi: float=0):
         return np.array([radius*np.cos(np.deg2rad(phi))*np.cos(np.deg2rad(theta)), radius*np.cos(np.deg2rad(phi))*np.sin(np.deg2rad(theta)), radius*np.sin(np.deg2rad(phi))])
 

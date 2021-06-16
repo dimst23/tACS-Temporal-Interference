@@ -4,6 +4,7 @@ import gc
 import sys
 import numpy as np
 import pyvista as pv
+import sfepy
 
 #### SfePy libraries
 from sfepy.base.base import Struct
@@ -17,36 +18,35 @@ from sfepy.solvers.nls import Newton
 
 class Solver:
     def __init__(self, settings_file: dict, settings_header: str, electrode_system: str, units: str = 'mm'):
-        self.__settings = settings_file
-        self.__settings_header = settings_header
+        self.__settings: dict = settings_file
+        self.__settings_header: str = settings_header
         if os.name == 'nt':
             self.__extra_path = '_windows'
         else:
             self.__extra_path = ''
         sys.path.append(os.path.realpath(settings_file[settings_header]['lib_path' + self.__extra_path]))
 
-        self.__linear_solver = None
-        self.__non_linear_solver = None
+        self.__linear_solver: sfepy.solvers.ls = None
+        self.__non_linear_solver: sfepy.solvers.nls = None
         self.__overall_volume = None
-        self.__overall_surface = None
-        self.__fields_to_calculate = []
-        self.__electrode_currents = {}
-        self._electrode_names = {}
-        self.conductivities = {}
-        self.electrode_system = electrode_system
-        self.units = units
+        self.__fields_to_calculate: list = []
+        self.__electrode_currents: dict = {}
+        self._electrode_names: dict = {}
+        self.conductivities: dict = {}
+        self.electrode_system: str = electrode_system
+        self.units: str = units
 
         # Read from settings
         self.__material_conductivity = None
-        self.__selected_model = None
-        self.domain = None
+        self.__selected_model: str = None
+        self.domain: sfepy.dicrete.fem.FEDomain = None
         self.problem = None
-        self.essential_boundary_ids = {}
-        self.essential_boundaries = []
-        self.field_variables = {}
-        self.fields = {}
+        self.essential_boundary_ids: dict = {}
+        self.essential_boundaries: list = []
+        self.field_variables: dict = {}
+        self.fields: dict = {}
 
-    def load_mesh(self, model=None, connectivity='3_4', id_array_name='cell_scalars'):
+    def load_mesh(self, model: str=None, connectivity: str='3_4', id_array_name: str='cell_scalars') -> None:
         if model is None:
             raise AttributeError('No model was selected.')
         mesh = pv.UnstructuredGrid(self.__settings[self.__settings_header][model]['mesh_file' + self.__extra_path])
@@ -66,7 +66,7 @@ class Solver:
 
         del mesh
 
-    def define_field_variable(self, field_var_name: str, field_name: str):
+    def define_field_variable(self, field_var_name: str, field_name: str) -> None:
         if not self.__overall_volume:
             self.__assign_regions()
         if field_name not in self.fields.keys():
@@ -78,7 +78,7 @@ class Solver:
             'test': FieldVariable(field_var_name + '_test', 'test', field=self.fields[field_name], primary_var_name=field_var_name),
         }
 
-    def define_essential_boundary(self, region_name: str, group_id: int, field_variable: str, potential: float = None, current: float = None):
+    def define_essential_boundary(self, region_name: str, group_id: int, field_variable: str, potential: float = None, current: float = None) -> None:
         assert field_variable in self.field_variables.keys(), 'The field variable {} is not defined'.format(field_variable)
         assert (potential is not None) ^ (current is not None), 'Only potential or current value shall be provided.'
 
@@ -87,13 +87,13 @@ class Solver:
                 self.__electrode_currents[field_variable][region_name] = current
             except KeyError:
                 self.__electrode_currents[field_variable] = {region_name: current}
-            potential = 1 if current > 0 else -1
+            potential = 1 if (current > 0) else -1
 
         self.essential_boundary_ids[region_name] = group_id
         temporary_domain = self.domain.create_region(region_name, 'vertices of group ' + str(group_id), 'facet', add_to_regions=False)
         self.essential_boundaries.append(EssentialBC(region_name, temporary_domain, {field_variable + '.all' : potential}))
 
-    def solver_setup(self, max_iterations=250, relative_tol=1e-7, absolute_tol=1e-3, verbose=False):
+    def solver_setup(self, max_iterations: int=250, relative_tol: float=1e-7, absolute_tol: float=1e-3, verbose: bool=False) -> None:
         self.__linear_solver = PETScKrylovSolver({
             'ksp_max_it': max_iterations,
             'ksp_rtol': relative_tol,
@@ -110,7 +110,7 @@ class Solver:
             'eps_a': absolute_tol,
         }, lin_solver=self.__linear_solver)
 
-    def run_solver(self, save_results: bool, post_process_calculation: bool, field_calculation: list = ['E'], output_dir=None, output_file_name=None):
+    def run_solver(self, save_results: bool, post_process_calculation: bool, field_calculation: list = ['E'], output_dir: str=None, output_file_name: str=None):
         if not self.__non_linear_solver:
             raise AttributeError('The solver is not setup. Please set it up before calling run.')
         self.__material_definition()
@@ -136,10 +136,10 @@ class Solver:
             return output_dictionary
         return self.problem.solve(save_results=save_results)
 
-    def set_custom_post_process(self, function):
+    def set_custom_post_process(self, function) -> None:
         self.__post_process = function
 
-    def clear_all(self):
+    def clear_all(self) -> None:
         del self.domain
         del self.__overall_volume
         del self.essential_boundaries
@@ -148,7 +148,7 @@ class Solver:
         del self.problem
         gc.collect()
 
-    def __generate_equations(self):
+    def __generate_equations(self) -> sfepy.discrete.Equations:
         # TODO: Add a check for the existence of the fields
         integral = Integral('i1', order=2)
 
@@ -164,14 +164,13 @@ class Solver:
 
         return Equations(equations_list)
 
-    def __material_definition(self):
+    def __material_definition(self) -> None:
         if not self.conductivities:
             self.__assign_regions()
         self.__material_conductivity = Material('conductivity', function=Function('get_conductivity', lambda ts, coors, mode=None, equations=None, term=None, problem=None, **kwargs: self.__get_conductivity(ts, coors, mode, equations, term, problem, conductivities=self.conductivities)))
 
-    def __assign_regions(self):
+    def __assign_regions(self) -> None:
         self.__overall_volume = self.domain.create_region('Omega', 'all')
-        self.__overall_surface = self.domain.create_region('Gamma', 'all', 'facet')
 
         for region in self.__settings[self.__settings_header][self.__selected_model]['regions'].items():
             self.domain.create_region(region[0], 'cells of group ' + str(region[1]['id']))

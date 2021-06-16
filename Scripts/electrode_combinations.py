@@ -62,8 +62,6 @@ cell_volumes_brain = msh.compute_cell_sizes().cell_arrays['Volume'][brain_region
 region_volumes_brain = {}
 for region in np.unique(aal_regions):
     roi = np.where(aal_regions == region)[0]
-
-    region = np.sum(cell_volumes_brain[roi])
     region_volumes_brain[int(region)] = np.sum(cell_volumes_brain[roi])
 del msh
 region_volumes_brain = np.array(region_volumes_brain)

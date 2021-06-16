@@ -9,13 +9,13 @@ import FileOps.FileOperations as FileOps
 
 class MeshOperations(ElecOps.ElectrodeOperations, FileOps.FileOperations):
     def __init__(self, surface_mesh: pymesh.Mesh, electrode_attributes: dict):
-        self.merged_meshes = None
-        self.skin_with_electrodes = None
-        self.electrode_mesh = None
-        self.surface_meshes = []
+        self.merged_meshes: pymesh.Mesh = None
+        self.skin_with_electrodes: list = None
+        self.electrode_mesh: pymesh.Mesh = None
+        self.surface_meshes: list = []
         ElecOps.ElectrodeOperations.__init__(self, surface_mesh, electrode_attributes)
 
-    def phm_model_meshing(self, mesh_filename: str, resolve_intersections=True, electrodes_to_omit=None):
+    def phm_model_meshing(self, mesh_filename: str, resolve_intersections: bool=True, electrodes_to_omit: list=None) -> None:
         """Generate a .poly file of the provided model mesh.
 
         Args:
@@ -61,7 +61,7 @@ class MeshOperations(ElecOps.ElectrodeOperations, FileOps.FileOperations):
         else:
             self.poly_write(mesh_filename, self.merged_meshes.vertices, self.merged_meshes.faces, regions)
 
-    def sphere_model_meshing(self, mesh_filename: str):
+    def sphere_model_meshing(self, mesh_filename: str) -> None:
         if not self.surface_meshes:
             raise AttributeError('Meshes must be loaded first. Please load the meshes.')
         self.electrode_meshing(sphere=True)
@@ -71,12 +71,12 @@ class MeshOperations(ElecOps.ElectrodeOperations, FileOps.FileOperations):
 
         self.poly_write(mesh_filename, self.merged_meshes.vertices, self.merged_meshes.faces, regions)
 
-    def load_surface_meshes(self, base_path: str, file_names: list):
+    def load_surface_meshes(self, base_path: str, file_names: list) -> None:
         # TODO: Order matters
         for file_name in file_names:
             self.surface_meshes.append(pymesh.load_mesh(os.path.join(base_path, file_name)))
 
-    def electrode_meshing(self, sphere=False, electrodes_to_omit=None):
+    def electrode_meshing(self, sphere: bool=False, electrodes_to_omit: list=None):
         print("Placing Electrodes") # INFO log
         if sphere:
             self.sphere_electrode_positioning()
@@ -91,28 +91,32 @@ class MeshOperations(ElecOps.ElectrodeOperations, FileOps.FileOperations):
         return self.electrode_mesh
 
     @staticmethod
-    def region_points(boundary_surfaces: list, shift: float, electrode_mesh=None, max_volume=30):
+    def region_points(boundary_surfaces: list, shift: float, electrode_mesh: pymesh.Mesh=None, max_volume=30):
         points = {}
-        i = 1
-        for surface in boundary_surfaces:
+        for index, surface in enumerate(boundary_surfaces):
             vertices = surface.vertices
             max_z_point_id = np.where(vertices[:, 2] == np.amax(vertices[:, 2]))[0][0]
-            points[str(i)] = {
-                'coordinates': np.round(vertices[max_z_point_id] - np.absolute(np.multiply(vertices[max_z_point_id]/np.linalg.norm(vertices[max_z_point_id]), [0, 0, shift])), 6),
+            max_z_point_unit_vector = vertices[max_z_point_id]/np.linalg.norm(vertices[max_z_point_id])
+
+            points[str(index + 1)] = {
+                'coordinates': np.round(vertices[max_z_point_id] - np.absolute(np.multiply(max_z_point_unit_vector, [0, 0, shift])), 6),
                 'max_volume': max_volume,
             }
-            i = i + 1
 
         if electrode_mesh is not None:
             electrode_regions = electrode_mesh.get_attribute('face_sources')
             electrode_mesh.add_attribute('vertex_valance')
             vertex_valance = electrode_mesh.get_attribute('vertex_valance')
+
             for region in np.unique(electrode_regions):
                 faces = electrode_mesh.faces[np.where(electrode_regions == region)[0]]
                 vertices = electrode_mesh.vertices[np.unique(faces)]
+
                 max_valance_point = np.where(vertex_valance[np.unique(faces)] == np.amax(vertex_valance[np.unique(faces)]))[0][0]
+                max_valance_unit_vector = vertices[max_valance_point]/np.linalg.norm(vertices[max_valance_point])
+
                 points[str(region)] = {
-                    'coordinates': np.round(vertices[max_valance_point] - np.multiply(vertices[max_valance_point]/np.linalg.norm(vertices[max_valance_point]), shift), 6),
+                    'coordinates': np.round(vertices[max_valance_point] - np.multiply(max_valance_unit_vector, shift), 6),
                     'max_volume': max_volume,
                 }
 
