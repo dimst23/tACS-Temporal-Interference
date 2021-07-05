@@ -50,6 +50,7 @@ sys.path.append(os.path.realpath(settings['SfePy']['lib_path' + extra_path]))
 import FEM.Solver as slv
 
 settings['SfePy'][options.model]['mesh_file' + extra_path] = options.meshf
+model_id = os.path.basename(options.meshf).split('.')[0].split('_')[-1]
 
 ## Read the mesh with pyvista to get the area ids and AAL regions
 msh = pv.UnstructuredGrid(options.meshf)
@@ -68,7 +69,7 @@ region_volumes_brain = np.array(region_volumes_brain)
 ## Read the mesh with pyvista to get the area ids and AAL regions
 
 electrodes = settings['SfePy']['electrodes']['10-10-mod']
-e_field_values = []
+# e_field_values = []
 e_field_values_brain = []
 
 solve = slv.Solver(settings, 'SfePy', '10-10-mod')
@@ -90,11 +91,11 @@ for electrode in electrodes.items():
     solution = solve.run_solver(save_results=False, post_process_calculation=True)
 
     e_field_base = solution['e_field_(potential)'].data[:, 0, :, 0]
-    if isinstance(e_field_values, list):
-        e_field_values = e_field_base
+    if isinstance(e_field_values_brain, list):
+        # e_field_values = e_field_base
         e_field_values_brain = e_field_base[brain_regions_mask]
     else:
-        e_field_values = np.append(e_field_values, e_field_base, axis=0)
+        # e_field_values = np.append(e_field_values, e_field_base, axis=0)
         e_field_values_brain = np.append(e_field_values_brain, e_field_base[brain_regions_mask], axis=0)
 
     del solution
@@ -103,5 +104,5 @@ for electrode in electrodes.items():
 del solve
 gc.collect
 
-np.save(os.path.join(options.csv_save_dir, '101309_fields_all'), e_field_values)
-np.savez_compressed(os.path.join(options.csv_save_dir, '101309_fields_brain'), e_field=e_field_values_brain.reshape((61, -1, 3)), cell_ids=cell_ids_brain, aal_regions=aal_regions, volumes=region_volumes_brain)
+# np.save(os.path.join(options.csv_save_dir, '101309_fields_all'), e_field_values)
+np.savez_compressed(os.path.join(options.csv_save_dir, model_id + '_fields_brain'), e_field=e_field_values_brain.reshape((61, -1, 3)), cell_ids=cell_ids_brain, aal_regions=aal_regions, volumes=region_volumes_brain)
