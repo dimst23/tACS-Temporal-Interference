@@ -348,25 +348,25 @@ SfePy:
     regions:
       Skin:
         id: 1
-        conductivity: 0.465
+        conductivity: 0.41
       Skull:
         id: 2
-        conductivity: 0.007
+        conductivity: 0.02
       CSF:
         id: 3
-        conductivity: 1.65
+        conductivity: 1.71
       GM:
         id: 4
-        conductivity: 0.276
+        conductivity: 0.47
       WM:
         id: 5
-        conductivity: 0.126
+        conductivity: 0.22
       Cerebellum:
         id: 6
-        conductivity: 0.201
+        conductivity: 0.54
       Ventricles:
         id: 7
-        conductivity: 1.65
+        conductivity: 1.71
   sphere:
     mesh_file: '/home/dimitris/repos/tacs-temporal-interference/CAD/Sphere/meshed_model_sphere.1.vtk'
     output_dir: '/home/dimitris/Documents/Thesis/'
