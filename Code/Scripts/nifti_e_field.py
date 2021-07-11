@@ -11,6 +11,9 @@ save_path = '/media/dimitris/Shared/Neuro Publication/All_models_meshed/Nifti/e_
 npz_path = '/media/dimitris/Elements/HPC_Models'
 files = np.sort(next(os.walk(npz_path))[2])
 
+distance_margin = 15
+voxel_size = 0.75
+
 for fl in files:
     model_id = os.path.splitext(fl)[0].split('_')[0]
     print(model_id)
@@ -30,8 +33,6 @@ for fl in files:
     grid_points = PVGeo.points_to_poly_data(df)
 
     bounds = msh.bounds
-    distance_margin = 15
-    voxel_size = 0.75
     x_bounds_init = np.ceil(np.sum(np.abs(bounds[0:2]) + distance_margin)/voxel_size).astype(np.int32)
     y_bounds_init = np.ceil(np.sum(np.abs(bounds[2:4]) + distance_margin)/voxel_size).astype(np.int32)
     z_bounds_init = np.ceil(np.sum(np.abs(bounds[4:6]) + distance_margin)/voxel_size).astype(np.int32)
@@ -44,11 +45,24 @@ for fl in files:
     img_header.set_xyzt_units('mm', 'sec')
 
     voxels = grid.interpolate(grid_points, radius=voxel_size*4, sharpness=8)
-    voxel_data = np.vstack((voxels['int_x_b'], voxels['int_y_b'], voxels['int_z_b'], voxels['int_x_d'], voxels['int_y_d'], voxels['int_z_d']))
-    voxel_data = voxel_data.reshape((6, z_bounds_init, y_bounds_init, x_bounds_init)).transpose()
 
-    img = nib.Nifti1Image(voxel_data, np.eye(4), img_header)
-    nib.save(img, os.path.join(save_path, 'Efield_' + model_id + '.nii'))
+    for e_field_array in voxels.array_names:
+        voxel_data = voxels[e_field_array].reshape((z_bounds_init, y_bounds_init, x_bounds_init)).transpose()
+        direction = e_field_array.split('_')[1]
+        e_field_montage = 'base' if e_field_array.split('_')[2] == 'b' else 'df'
+
+        x_minus_bound = bounds[0] - distance_margin
+        y_minus_bound = bounds[2] - distance_margin
+        z_minus_bound = bounds[4] - distance_margin
+        affine = np.array([[voxel_size, 0, 0, x_minus_bound], [0, voxel_size, 0, y_minus_bound], [0, 0, voxel_size, z_minus_bound], [0, 0, 0, 1]])
+
+        try:
+            os.mkdir(os.path.join(save_path, model_id))
+        except OSError:
+            pass
+
+        img = nib.Nifti1Image(voxel_data, affine, img_header)
+        nib.save(img, os.path.join(save_path, model_id, 'Efield_{}_{}_{}.nii'.format(direction, e_field_montage, model_id)))
 
     del msh
     del npz_arrays

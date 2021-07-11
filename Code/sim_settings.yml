@@ -2,8 +2,7 @@ SfePy:
   lib_path: '/home/dimitris/repos/tacs-temporal-interference/Scripts'
   lib_path_windows: 'C:\Users\Dimitris\Nextcloud\Documents\Neuroscience Bachelor Thesis\Public Repository\tacs-temporal-interference\Scripts'
   electrodes:
-    #conductivity_copper: 59600000.0
-    conductivity: 4.0
+    conductivity: 1.4
     10-20:
       Fp1:
         id: 10
