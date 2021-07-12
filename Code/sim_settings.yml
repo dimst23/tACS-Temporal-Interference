@@ -1,5 +1,5 @@
 SfePy:
-  lib_path: '/home/dimitris/repos/tacs-temporal-interference/Scripts'
+  lib_path: '/home/dimitris/repos/ttis-software/Code/Core'
   lib_path_windows: 'C:\Users\Dimitris\Nextcloud\Documents\Neuroscience Bachelor Thesis\Public Repository\tacs-temporal-interference\Scripts'
   electrodes:
     conductivity: 1.4

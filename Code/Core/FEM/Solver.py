@@ -3,6 +3,7 @@ import os
 import gc
 import sys
 import numpy as np
+from numpy.core.defchararray import add
 import pyvista as pv
 import sfepy
 
@@ -35,6 +36,8 @@ class Solver:
         self.conductivities: dict = {}
         self.electrode_system: str = electrode_system
         self.units: str = units
+        self.__out_of_range_assign_region: str = None
+        self.__out_of_range_group_threshold: int = None
 
         # Read from settings
         self.__material_conductivity = None
@@ -66,9 +69,12 @@ class Solver:
 
         del mesh
 
-    def define_field_variable(self, field_var_name: str, field_name: str) -> None:
+    def define_field_variable(self, field_var_name: str, field_name: str, out_of_range_assign_region: str = None, out_of_range_group_threshold: int = None) -> None:
+        self.__out_of_range_assign_region = out_of_range_assign_region
+        self.__out_of_range_group_threshold = out_of_range_group_threshold
+
         if not self.__overall_volume:
-            self.__assign_regions()
+            self.__assign_regions(self.__out_of_range_assign_region, self.__out_of_range_group_threshold)
         if field_name not in self.fields.keys():
             self.fields[field_name] = Field.from_args(field_name, dtype=np.float64, shape=(1, ), region=self.__overall_volume, approx_order=1)
             self.__electrode_currents.clear()
@@ -166,17 +172,29 @@ class Solver:
 
     def __material_definition(self) -> None:
         if not self.conductivities:
-            self.__assign_regions()
+            self.__assign_regions(self.__out_of_range_assign_region, self.__out_of_range_group_threshold)
         self.__material_conductivity = Material('conductivity', function=Function('get_conductivity', lambda ts, coors, mode=None, equations=None, term=None, problem=None, **kwargs: self.__get_conductivity(ts, coors, mode, equations, term, problem, conductivities=self.conductivities)))
 
-    def __assign_regions(self) -> None:
-        valid_cell_groups = ''
+    def __assign_regions(self, out_of_range_assign_region: str = None, out_of_range_group_threshold: int = None) -> None:
+        self.__overall_volume = self.domain.create_region('Omega', 'all')
+
+        if out_of_range_assign_region is not None:
+            unique_cell_groups = np.unique(self.domain.cmesh.cell_groups)
+            out_of_range_groups = unique_cell_groups[unique_cell_groups > out_of_range_group_threshold]
+
+            if out_of_range_groups.size > 0:
+                additions = ''
+                for group in out_of_range_groups:
+                    additions += 'cells of group {} +c '.format(group)
+                additions = ' +c c' + additions.strip('+c ')
 
         for region in self.__settings[self.__settings_header][self.__selected_model]['regions'].items():
-            self.domain.create_region(region[0], 'cells of group ' + str(region[1]['id']))
+            if (region[0] == out_of_range_assign_region) and (out_of_range_groups.size > 0):
+                self.domain.create_region(region[0], 'cells of group ' + str(region[1]['id']) + additions)
+            else:
+                self.domain.create_region(region[0], 'cells of group ' + str(region[1]['id']))
             self.domain.create_region(region[0] + '_Gamma', 'vertices of group ' + str(region[1]['id']), 'facet')
             self.conductivities[region[0]] = region[1]['conductivity']
-            valid_cell_groups += 'cells of group ' + str(region[1]['id']) + '+c '
 
         for electrode in self.__settings[self.__settings_header]['electrodes'][self.electrode_system].items():
             self.domain.create_region(electrode[0], 'cells of group ' + str(electrode[1]['id']))
@@ -184,9 +202,6 @@ class Solver:
             self.domain.create_region(electrode[0] + '_Gamma_cross', 'r.{} *v r.Skin'.format(electrode[0]), 'facet')
             self.conductivities[electrode[0]] = self.__settings[self.__settings_header]['electrodes']['conductivity']
             self._electrode_names[int(electrode[1]['id'])] = electrode[0]
-            valid_cell_groups += 'cells of group ' + str(region[1]['id']) + '+c '
-        valid_cell_groups = 'c' + valid_cell_groups.strip('+c ')
-        self.__overall_volume = self.domain.create_region('Omega', valid_cell_groups)
 
     def __get_conductivity(self, ts, coors, mode=None, equations=None, term=None, problem=None, conductivities=None):
         # Execute only once at the initialization
