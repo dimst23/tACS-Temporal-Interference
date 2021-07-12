@@ -2,8 +2,6 @@ from __future__ import absolute_import
 import os
 import gc
 import sys
-from numpy.lib.nanfunctions import nanargmax
-from sfepy.discrete.fem import mesh
 import yaml
 import numpy as np
 import pyvista as pv
@@ -82,7 +80,7 @@ for electrode in electrodes.items():
     solve.fields.clear()
     solve.field_variables.clear()
 
-    solve.define_field_variable('potential', 'voltage')
+    solve.define_field_variable('potential', 'voltage', out_of_range_assign_region='Skin', out_of_range_group_threshold=71)
 
     solve.define_essential_boundary(electrode[0], electrode[1]['id'], 'potential', current=1)
     solve.define_essential_boundary('P9', 71, 'potential', current=-1)
