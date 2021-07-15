@@ -3,7 +3,7 @@ import gc
 import numpy as np
 import nibabel as nib
 
-base_path = r'C:\Users\Dimitris\Desktop\Neuro\e_field\affine'
+base_path = r'C:\Users\Dimitris\Desktop\Neuro\e_field'
 folders = next(os.walk(base_path))[1]
 
 root_sum_squared_models = {}
@@ -21,7 +21,7 @@ for fld in folders:
             continue
         field_montage = fl.split('.')[0].split('_')[1]
         field_direction = fl.split('.')[0].split('_')[2]
-        dict_key = '{}_{}'.format(field_montage, field_direction)
+        dict_key = '{}_{}'.format(field_direction, field_montage)
         #
         nifti_images_dict[dict_key] = nib.load(os.path.join(base_path, model_id, fl))
     #

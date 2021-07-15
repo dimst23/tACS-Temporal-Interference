@@ -37,6 +37,7 @@ plt.show()
 
 
 df = pd.DataFrame(sum_values_df).dropna()
+df = df.transpose()
 #df.to_csv(r'D:\Neuro Publication\Preliminary_Models\sum_over_areas.csv')
 corr_df = df.corr(method='pearson')
 

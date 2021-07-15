@@ -35,7 +35,7 @@ def modulation_envelope(e_field_1, e_field_2):
 
 
 # base_path = r'C:\Users\Dimitris\Desktop\Neuro\e_field\affine'
-base_path = r'/mnt/c/Users/Dimitris/Desktop/Neuro/e_field/affine'
+base_path = '/mnt/c/Users/Dimitris/Desktop/Neuro/e_field'
 
 folders = next(os.walk(base_path))[1]
 first = True
@@ -53,12 +53,12 @@ for fld in folders:
             continue
         field_montage = fl.split('.')[0].split('_')[1]
         field_direction = fl.split('.')[0].split('_')[2]
-        dict_key = '{}_{}'.format(field_montage, field_direction)
+        dict_key = '{}_{}'.format(field_direction, field_montage)
 
         nifti_images_dict[dict_key] = nib.load(os.path.join(base_path, model_id, fl))
     
-    base_all = 1.25*np.nan_to_num(np.vstack((nifti_images_dict['base_x'].get_fdata().flatten(), nifti_images_dict['base_y'].get_fdata().flatten(), nifti_images_dict['base_z'].get_fdata().flatten())).transpose())
-    df_all = 0.75*np.nan_to_num(np.vstack((nifti_images_dict['df_x'].get_fdata().flatten(), nifti_images_dict['df_y'].get_fdata().flatten(), nifti_images_dict['df_z'].get_fdata().flatten())).transpose())
+    base_all = np.nan_to_num(np.vstack((nifti_images_dict['base_x'].get_fdata().flatten(), nifti_images_dict['base_y'].get_fdata().flatten(), nifti_images_dict['base_z'].get_fdata().flatten())).transpose())
+    df_all = np.nan_to_num(np.vstack((nifti_images_dict['df_x'].get_fdata().flatten(), nifti_images_dict['df_y'].get_fdata().flatten(), nifti_images_dict['df_z'].get_fdata().flatten())).transpose())
     
     if first:
         sum_e_field_base = base_all
@@ -76,7 +76,7 @@ for fld in folders:
     gc.collect()
 
     
-max_mod = modulation_envelope(sum_e_field_base/len(folders), sum_e_field_df/len(folders))
+max_mod = modulation_envelope(1.25*sum_e_field_base/len(folders), 0.75*sum_e_field_df/len(folders))
 
 img_header = nib.Nifti1Header()
 img_header.set_xyzt_units('mm', 'sec')
