@@ -1,5 +1,55 @@
 import numpy as np
 
+try:
+    import cupy
+
+    def modulation_envelope_gpu(e_field_1, e_field_2, dir_vector=None):
+        if dir_vector is None:
+            envelope = cp.zeros(e_field_1.shape[0])
+
+            # Calculate the angles between the two fields for each vector
+            dot_angle = cp.einsum('ij,ij->i', e_field_1, e_field_2)
+            cross_angle = cp.linalg.norm(cp.cross(e_field_1, e_field_2), axis=1)
+            angles = cp.arctan2(cross_angle, dot_angle)
+
+            # Flip the direction of the electric field if the angle between the two is greater or equal to 90 degrees
+            e_field_2 = cp.where(cp.broadcast_to(angles >= cp.pi/2., (3, e_field_2.shape[0])).T, -e_field_2, e_field_2)
+
+            # Recalculate the angles
+            dot_angle = cp.einsum('ij,ij->i', e_field_1, e_field_2)
+            cross_angle = cp.linalg.norm(cp.cross(e_field_1, e_field_2), axis=1)
+            angles = cp.arctan2(cross_angle, dot_angle)
+            E_minus = cp.subtract(e_field_1, e_field_2) # Create the difference of the E fields
+
+            # Condition to have two times the E2 field amplitude
+            max_condition_1 = cp.linalg.norm(e_field_2, axis=1) < cp.linalg.norm(e_field_1, axis=1)*cp.cos(angles)
+            e1_gr_e2 = cp.where(cp.linalg.norm(e_field_1, axis=1) > cp.linalg.norm(e_field_2, axis=1), max_condition_1, False)
+
+            # Condition to have two times the E1 field amplitude
+            max_condition_2 = cp.linalg.norm(e_field_1, axis=1) < cp.linalg.norm(e_field_2, axis=1)*cp.cos(angles)
+            e2_gr_e1 = cp.where(cp.linalg.norm(e_field_2, axis=1) > cp.linalg.norm(e_field_1, axis=1), max_condition_2, False)
+
+            # Double magnitudes
+            envelope = cp.where(e1_gr_e2, 2.0*cp.linalg.norm(e_field_2, axis=1), envelope) # 2E2 (First case)
+            envelope = cp.where(e2_gr_e1, 2.0*cp.linalg.norm(e_field_1, axis=1), envelope) # 2E1 (Second case)
+
+            # Calculate the complement area to the previous calculation
+            e1_gr_e2 = cp.where(cp.linalg.norm(e_field_1, axis=1) > cp.linalg.norm(e_field_2, axis=1), cp.logical_not(max_condition_1), False)
+            e2_gr_e1 = cp.where(cp.linalg.norm(e_field_2, axis=1) > cp.linalg.norm(e_field_1, axis=1), cp.logical_not(max_condition_2), False)
+
+            # Cross product
+            envelope = cp.where(e1_gr_e2, 2.0*(cp.linalg.norm(cp.cross(e_field_2, E_minus), axis=1)/cp.linalg.norm(E_minus, axis=1)), envelope) # (First case)
+            envelope = cp.where(e2_gr_e1, 2.0*(cp.linalg.norm(cp.cross(e_field_1, -E_minus), axis=1)/cp.linalg.norm(-E_minus, axis=1)), envelope) # (Second case)
+        else:
+            # Calculate the values of the E field modulation envelope along the desired n direction
+            E_plus = cp.add(e_field_1, e_field_2) # Create the sum of the E fields
+            E_minus = cp.subtract(e_field_1, e_field_2) # Create the difference of the E fields
+            envelope = cp.abs(cp.abs(cp.dot(E_plus, dir_vector)) - cp.abs(cp.dot(E_minus, dir_vector)))
+
+        return cp.nan_to_num(envelope)
+except ImportError:
+    pass
+
 def modulation_envelope(e_field_1, e_field_2, dir_vector=None):
     """[summary]
 
