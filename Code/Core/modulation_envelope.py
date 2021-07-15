@@ -1,7 +1,7 @@
 import numpy as np
 
 try:
-    import cupy
+    import cupy as cp
 
     def modulation_envelope_gpu(e_field_1, e_field_2, dir_vector=None):
         if dir_vector is None:
