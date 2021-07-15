@@ -135,8 +135,8 @@ if __name__ == "__main__":
     result = ga(function=ga_objective_df, dimension=bounds.shape[0], variable_type_mixed=var_type, variable_boundaries=bounds, algorithm_parameters=algorithm_param, function_timeout=120., convergence_curve=False)
     result.run()
 
-    convergence=result.report
-    solution=result.ouput_dict
+    convergence = result.report
+    solution = result.output_dict
 
     model_id = options.npz_file.split('.')[0].split('_')[0]
     df_dict = {'electrodes': solution['variables'], 'value': solution['function']}
